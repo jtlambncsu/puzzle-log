@@ -1,6 +1,6 @@
 import { describe, expect, it } from 'vitest';
 import type { Puzzle } from '@puzzle-log/shared';
-import { hasTag, matchesSearch, normalize, tagCounts } from './search';
+import { hasTag, matchesSearch, normalize, rankBySimilarity, tagCounts } from './search';
 
 function puzzle(fields: Partial<Puzzle> & { title: string }): Puzzle {
   return { id: fields.title, userId: 'u', createdAt: '', ...fields };
@@ -63,5 +63,27 @@ describe('tags', () => {
       { tag: 'Star Wars', count: 2 },
       { tag: 'Forest', count: 1 },
     ]);
+  });
+});
+
+describe('rankBySimilarity', () => {
+  const library = [
+    puzzle({ title: 'Cinderella', brand: 'Ceaco', tags: ['Disney'] }),
+    puzzle({ title: 'Retro Space Explorer', tags: ['LEGO'] }),
+    puzzle({ title: 'Wishes upon a star' }),
+    puzzle({ title: 'Starry Night', brand: 'Ravensburger' }),
+  ];
+
+  it('finds puzzles sharing the meaningful words of a product title', () => {
+    const titles = (productTitle: string) =>
+      rankBySimilarity(library, productTitle).map((p) => p.title);
+
+    expect(
+      titles('Ceaco 1000 Piece Cinderella Wishes Upon A Dream Interlocking Jigsaw Puzzle'),
+    ).toEqual(['Cinderella', 'Wishes upon a star']);
+    expect(titles('LEGO® Retro Space Explorer Puzzle 1000 Pieces 26.75 x 19.75 inches')).toEqual([
+      'Retro Space Explorer',
+    ]);
+    expect(titles('Buffalo Games 1000 Piece Jigsaw Puzzle')).toEqual([]);
   });
 });

@@ -33,5 +33,10 @@ Context for AI assistants (and humans) picking up this repo. Read `docs/ARCHITEC
 - Stateful AWS resources are `RETAIN`ed; changing a DynamoDB key schema creates a new table.
 - After infra changes deploy, verify against the live API (e.g. `curl` health, 401 without a
   token, CORS preflight 2xx).
+- Barcodes are stored normalized to 13 digits (`normalizeBarcode` in `packages/shared`). Web
+  tests mock `@yudiel/react-qr-scanner` (no camera in jsdom); see `routes/scan/scan.test.tsx`.
+- The `puzzle-log` cloud environment allows `ui.shadcn.com` (shadcn CLI) and
+  `api.upcitemdb.com` (barcode lookups). Node's `fetch` ignores the sandbox proxy: run scripts
+  that call real services with `NODE_USE_ENV_PROXY=1 NODE_EXTRA_CA_CERTS=/root/.ccr/ca-bundle.crt`.
 - New HTTP methods or request headers in the web client must also be added to API Gateway's
   `corsPreflight` (and the S3 bucket's CORS if the browser calls S3). Tests can't catch this.

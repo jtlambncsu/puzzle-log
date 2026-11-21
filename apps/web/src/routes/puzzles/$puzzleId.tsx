@@ -98,6 +98,8 @@ function PuzzleDetailPage() {
 
       {puzzle.notes && <p className="whitespace-pre-wrap">{puzzle.notes}</p>}
 
+      {puzzle.barcode && <p className="text-sm text-muted-foreground">Barcode {puzzle.barcode}</p>}
+
       <AlertDialog>
         <AlertDialogTrigger asChild>
           <Button variant="destructive" disabled={deletePuzzle.isPending}>

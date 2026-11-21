@@ -49,6 +49,16 @@ export class ApiStack extends Stack {
       removalPolicy: RemovalPolicy.RETAIN,
     });
 
+    // Cached barcode → product lookups. Disposable (it refills from the lookup service), so
+    // unlike the puzzles table it's deleted with the stack. `expiresAt` lets DynamoDB expire
+    // old entries by itself.
+    const barcodeLookups = new TableV2(this, 'BarcodeLookups', {
+      partitionKey: { name: 'barcode', type: AttributeType.STRING },
+      billing: Billing.onDemand(),
+      timeToLiveAttribute: 'expiresAt',
+      removalPolicy: RemovalPolicy.DESTROY,
+    });
+
     const photos = new Bucket(this, 'Photos', {
       blockPublicAccess: BlockPublicAccess.BLOCK_ALL,
       encryption: BucketEncryption.S3_MANAGED,
@@ -76,6 +86,7 @@ export class ApiStack extends Stack {
       environment: {
         PUZZLES_TABLE: table.tableName,
         PHOTOS_BUCKET: photos.bucketName,
+        BARCODE_TABLE: barcodeLookups.tableName,
         ...(props.allowedOrigins?.length && { ALLOWED_ORIGINS: props.allowedOrigins.join(',') }),
         NODE_OPTIONS: '--enable-source-maps',
       },
@@ -93,6 +104,7 @@ export class ApiStack extends Stack {
     });
 
     table.grantReadWriteData(fn);
+    barcodeLookups.grantReadWriteData(fn);
     photos.grantPut(fn); // signing a presigned POST requires the signer to be allowed to PUT
     photos.grantRead(fn);
     photos.grantDelete(fn); // remove replaced and deleted puzzles' photos

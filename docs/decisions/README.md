@@ -23,3 +23,4 @@ New decision? Copy [`0000-template.md`](0000-template.md) to the next number.
 | [0013](0013-forms-react-hook-form-zod.md)     | React Hook Form + Zod                                                   |
 | [0014](0014-testing-strategy.md)              | Testing: Vitest, Testing Library, MSW, CDK assertions                   |
 | [0018](0018-search-tags-editing.md)           | Search, tags and editing: client-side filtering, URL state, Merge Patch |
+| [0019](0019-barcode-scanning.md)              | Barcode scanning: browser decoder, own barcodes first, cached lookup    |

@@ -1,6 +1,13 @@
 import { http, HttpResponse } from 'msw';
 import { setupServer } from 'msw/node';
-import type { CreatePuzzleInput, Puzzle, UpdatePuzzleInput } from '@puzzle-log/shared';
+import {
+  normalizeBarcode,
+  type BarcodeLookupResult,
+  type CreatePuzzleInput,
+  type ProductInfo,
+  type Puzzle,
+  type UpdatePuzzleInput,
+} from '@puzzle-log/shared';
 
 /**
  * A tiny in-memory fake of our API. Tests talk to it through real `fetch` calls, which MSW
@@ -10,7 +17,12 @@ export const db = {
   puzzles: new Map<string, Puzzle>(),
   uploads: [] as FormData[],
   patches: [] as UpdatePuzzleInput[],
+  /** What the fake barcode lookup knows, keyed by normalized barcode. */
+  products: new Map<string, ProductInfo>(),
+  barcodeLookups: [] as string[],
   reset() {
+    this.products.clear();
+    this.barcodeLookups = [];
     this.puzzles.clear();
     this.uploads = [];
     this.patches = [];
@@ -42,6 +54,7 @@ export const handlers = [
     const input = (await request.json()) as CreatePuzzleInput;
     const puzzle = db.add({
       ...input,
+      ...(input.barcode && { barcode: normalizeBarcode(input.barcode) }),
       ...(input.imageKey && { imageUrl: `${S3_URL}${input.imageKey}?signed` }),
     });
     return HttpResponse.json(puzzle, { status: 201 });
@@ -75,6 +88,16 @@ export const handlers = [
       ? new HttpResponse(null, { status: 204 })
       : HttpResponse.json({}, { status: 404 }),
   ),
+
+  http.get('/api/barcodes/:code', ({ params }) => {
+    const barcode = normalizeBarcode(params.code as string);
+    if (!barcode) return HttpResponse.json({}, { status: 400 });
+    db.barcodeLookups.push(barcode);
+    return HttpResponse.json({
+      barcode,
+      product: db.products.get(barcode),
+    } satisfies BarcodeLookupResult);
+  }),
 
   http.post('/api/uploads', async ({ request }) => {
     const { contentType } = (await request.json()) as { contentType: string };

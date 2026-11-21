@@ -31,6 +31,17 @@ export const puzzlesQueryOptions = (api: PuzzlesApi) =>
 export const puzzleQueryOptions = (api: PuzzlesApi, id: string) =>
   queryOptions({ queryKey: puzzleKeys.detail(id), queryFn: () => api.get(id) });
 
+/**
+ * What product a barcode is. Products don't change, so once fetched it never goes stale.
+ * (The server caches lookups too; this avoids even asking it again in the same session.)
+ */
+export const barcodeQueryOptions = (api: PuzzlesApi, barcode: string) =>
+  queryOptions({
+    queryKey: ['barcodes', barcode] as const,
+    queryFn: () => api.lookupBarcode(barcode),
+    staleTime: Infinity,
+  });
+
 /** Every tag in use, most used first: suggestions for the tag input. */
 export function useAllTags() {
   const api = useApi();

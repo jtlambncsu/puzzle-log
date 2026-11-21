@@ -1,17 +1,33 @@
 import { createFileRoute, Link, useNavigate } from '@tanstack/react-router';
+import { z } from 'zod';
 import { ImagesIcon } from 'lucide-react';
 import { toast } from 'sonner';
 import { useCreatePuzzle } from '@/api/queries';
 import { Button } from '@/components/ui/button';
 import { PuzzleForm } from '@/features/puzzles/PuzzleForm';
-import { toCreatePuzzleInput } from '@/features/puzzles/puzzleForm';
+import { emptyPuzzleForm, toCreatePuzzleInput } from '@/features/puzzles/puzzleForm';
+
+/**
+ * Optional pre-fill, e.g. from a barcode scan: /puzzles/new?title=…&brand=…&pieces=…&barcode=…
+ * The router parses numbers in the URL, so text fields accept them too.
+ */
+const text = z.union([z.string(), z.number()]).transform(String).optional().catch(undefined);
+
+const newPuzzleSearchSchema = z.object({
+  title: text,
+  brand: text,
+  pieces: z.coerce.number().int().positive().optional().catch(undefined),
+  barcode: text,
+});
 
 export const Route = createFileRoute('/puzzles/new')({
+  validateSearch: newPuzzleSearchSchema,
   component: NewPuzzlePage,
 });
 
 function NewPuzzlePage() {
   const navigate = useNavigate();
+  const prefill = Route.useSearch();
   const createPuzzle = useCreatePuzzle();
 
   return (
@@ -26,6 +42,13 @@ function NewPuzzlePage() {
         </Button>
       </div>
       <PuzzleForm
+        defaultValues={{
+          ...emptyPuzzleForm,
+          title: prefill.title ?? '',
+          brand: prefill.brand ?? '',
+          pieceCount: prefill.pieces ? String(prefill.pieces) : '',
+          barcode: prefill.barcode ?? '',
+        }}
         onSubmit={async (values, photo, rotation) => {
           try {
             const input = toCreatePuzzleInput(values);

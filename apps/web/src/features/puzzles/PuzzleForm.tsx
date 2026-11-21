@@ -170,6 +170,19 @@ export function PuzzleForm({
           <FieldError errors={[errors.tags]} />
         </Field>
 
+        <Field data-invalid={!!errors.barcode}>
+          <FieldLabel htmlFor="barcode">Barcode</FieldLabel>
+          <Input
+            id="barcode"
+            inputMode="numeric"
+            autoComplete="off"
+            placeholder="Number under the barcode on the box"
+            aria-invalid={!!errors.barcode}
+            {...register('barcode')}
+          />
+          <FieldError errors={[errors.barcode]} />
+        </Field>
+
         <Field data-invalid={!!errors.notes}>
           <FieldLabel htmlFor="notes">Notes</FieldLabel>
           <Textarea
