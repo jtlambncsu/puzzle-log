@@ -5,7 +5,7 @@ import { readFileSync } from 'node:fs';
 import { join } from 'node:path';
 import { describe, expect, it, vi } from 'vitest';
 import { compressImage } from '@/lib/image';
-import { db, server } from '@/test/server';
+import { db, S3_URL, server } from '@/test/server';
 import { renderApp } from '@/test/renderApp';
 
 // jsdom can't decode or draw images, so pass photos through unchanged and let tests check
@@ -300,6 +300,7 @@ describe('rotating photos', () => {
   });
 
   it('rotates a saved photo and replaces it', async () => {
+    const fetchSpy = vi.spyOn(globalThis, 'fetch');
     const puzzle = db.add({
       title: 'Sideways',
       imageKey: 'uploads/test-user/original',
@@ -313,6 +314,13 @@ describe('rotating photos', () => {
     await user.click(screen.getByRole('button', { name: 'Save rotation' }));
 
     expect(await screen.findByText('Photo rotated')).toBeInTheDocument();
+    // The download must skip the browser cache (see downloadPhoto in queries.ts). MSW doesn't
+    // expose a request's cache mode, so check what fetch was called with.
+    const download = fetchSpy.mock.calls.find(([url]) =>
+      String(url).startsWith(S3_URL + 'uploads'),
+    );
+    expect(download?.[1]).toMatchObject({ cache: 'no-store' });
+    fetchSpy.mockRestore();
     expect(compressImage).toHaveBeenLastCalledWith(expect.anything(), { rotation: 90 });
     expect(db.puzzles.get(puzzle.id)?.imageKey).toBe('uploads/test-user/photo-1');
     // The new photo is already upright, so the preview rotation resets.

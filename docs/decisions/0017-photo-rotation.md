@@ -23,6 +23,9 @@ so every screen (and the future mobile app) shows it correctly with no extra log
   **`PATCH /api/puzzles/:id`** endpoint.
 - **Photo cleanup:** when a puzzle's photo is replaced or the puzzle is deleted, the API
   deletes the old S3 object (best-effort: a failure is logged, not returned).
+- The download uses `cache: 'no-store'`: a copy cached from the `<img>` request has no CORS
+  headers, and Safari would otherwise reuse it and block the fetch (see
+  [lessons learned](../lessons-learned.md#a-cached-image-breaks-a-cors-fetch-of-the-same-url-safari-load-failed)).
 - If a rotation is requested but the browser can't decode the image, `compressImage` throws
   rather than silently uploading the unrotated photo.
 
