@@ -12,13 +12,15 @@ afterEach(() => {
 });
 afterAll(() => server.close());
 
-// jsdom lacks a few browser APIs that Radix UI (used by shadcn/ui) relies on.
+// jsdom lacks a few browser APIs that Radix UI (used by shadcn/ui) and Sonner rely on.
 globalThis.ResizeObserver ??= class {
   observe() {}
   unobserve() {}
   disconnect() {}
 };
 Element.prototype.hasPointerCapture ??= () => false;
+Element.prototype.setPointerCapture ??= () => {};
+Element.prototype.releasePointerCapture ??= () => {};
 Element.prototype.scrollIntoView ??= () => {};
 window.matchMedia ??= (query: string) =>
   ({

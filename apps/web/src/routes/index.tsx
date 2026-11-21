@@ -117,7 +117,7 @@ function PuzzleListPage() {
 }
 
 function countStatuses(puzzles: readonly { status?: PuzzleStatus }[]) {
-  const counts: Record<PuzzleStatus, number> = { done: 0, owned: 0, wishlist: 0 };
+  const counts: Record<PuzzleStatus, number> = { done: 0, in_progress: 0, owned: 0, wishlist: 0 };
   for (const puzzle of puzzles) counts[puzzleStatus(puzzle)]++;
   return counts;
 }

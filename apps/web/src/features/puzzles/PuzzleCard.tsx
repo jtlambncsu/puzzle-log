@@ -70,10 +70,21 @@ export function StatusBadge({ puzzle, className }: { puzzle: Puzzle; className?:
   const status = puzzleStatus(puzzle);
   if (status === 'done') return null;
   const { label, icon: Icon } = STATUS_INFO[status];
+  const timing = puzzle.timerStartedAt !== undefined;
   return (
     <Badge variant="secondary" className={`gap-1 shadow-sm ${className ?? ''}`}>
       <Icon aria-hidden />
       {label}
+      {timing && (
+        <>
+          {/* A pulsing dot while the timer runs; still (not hidden) for reduced motion. */}
+          <span
+            aria-hidden
+            className="ml-0.5 size-1.5 rounded-full bg-red-500 motion-safe:animate-pulse"
+          />
+          <span className="sr-only">, timer running</span>
+        </>
+      )}
     </Badge>
   );
 }

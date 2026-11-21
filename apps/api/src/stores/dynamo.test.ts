@@ -10,6 +10,7 @@ import {
 } from '@aws-sdk/lib-dynamodb';
 import { ConditionalCheckFailedException, DynamoDBClient } from '@aws-sdk/client-dynamodb';
 import { DynamoPuzzleStore } from './dynamo.js';
+import { ConflictError } from './types.js';
 
 const client = DynamoDBDocumentClient.from(new DynamoDBClient({ region: 'us-east-1' }));
 const dynamo = mockClient(client);
@@ -107,5 +108,52 @@ describe('DynamoPuzzleStore', () => {
       userId: 'u1',
       id: 'a',
     });
+  });
+});
+
+describe('DynamoPuzzleStore timer conditions', () => {
+  beforeEach(() => dynamo.reset());
+
+  it('only starts a timer that is not running', async () => {
+    dynamo.on(UpdateCommand).resolves({ Attributes: { id: 'p1' } });
+
+    await store.update('u1', 'p1', { timerStartedAt: 'T1' }, { timerStartedAt: null });
+
+    expect(dynamo.commandCalls(UpdateCommand)[0]?.args[0].input).toMatchObject({
+      ConditionExpression: 'attribute_exists(id) AND attribute_not_exists(#timerStartedAt)',
+      ExpressionAttributeNames: { '#timerStartedAt': 'timerStartedAt' },
+    });
+  });
+
+  it('only stops the timer it read', async () => {
+    dynamo.on(UpdateCommand).resolves({ Attributes: { id: 'p1' } });
+
+    await store.update('u1', 'p1', { timerStartedAt: null }, { timerStartedAt: 'T1' });
+
+    expect(dynamo.commandCalls(UpdateCommand)[0]?.args[0].input).toMatchObject({
+      UpdateExpression: 'REMOVE #timerStartedAt',
+      ConditionExpression: 'attribute_exists(id) AND #timerStartedAt = :expectedTimerStartedAt',
+      ExpressionAttributeValues: { ':expectedTimerStartedAt': 'T1' },
+    });
+  });
+
+  it('tells a changed timer apart from a missing puzzle', async () => {
+    dynamo
+      .on(UpdateCommand)
+      .rejectsOnce(
+        new ConditionalCheckFailedException({
+          message: 'no',
+          $metadata: {},
+          Item: { id: { S: 'p1' } },
+        }),
+      )
+      .rejectsOnce(new ConditionalCheckFailedException({ message: 'no', $metadata: {} }));
+
+    await expect(
+      store.update('u1', 'p1', { timerStartedAt: null }, { timerStartedAt: 'T1' }),
+    ).rejects.toThrow(ConflictError);
+    expect(
+      await store.update('u1', 'gone', { timerStartedAt: null }, { timerStartedAt: 'T1' }),
+    ).toBeUndefined();
   });
 });

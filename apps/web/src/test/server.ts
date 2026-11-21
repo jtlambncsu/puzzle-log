@@ -6,6 +6,7 @@ import {
   type CreatePuzzleInput,
   type ProductInfo,
   type Puzzle,
+  type StartTimerInput,
   type UpdatePuzzleInput,
 } from '@puzzle-log/shared';
 
@@ -39,6 +40,12 @@ export const db = {
   },
 };
 
+function stopTimer({ timerStartedAt, ...puzzle }: Puzzle): Puzzle {
+  if (!timerStartedAt) return puzzle;
+  const session = { start: timerStartedAt, end: new Date().toISOString() };
+  return { ...puzzle, sessions: [...(puzzle.sessions ?? []), session] };
+}
+
 export const S3_URL = 'https://photos.s3.example/';
 
 // Relative URLs ('/api/...') resolve against jsdom's location.
@@ -65,13 +72,38 @@ export const handlers = [
     if (!existing) return HttpResponse.json({}, { status: 404 });
     const patch = (await request.json()) as UpdatePuzzleInput;
     db.patches.push(patch);
-    const updated: Puzzle = { ...existing };
+    let updated: Puzzle = { ...existing };
     for (const [name, value] of Object.entries(patch)) {
       // JSON Merge Patch, like the real API: null removes the field.
       if (value === null) delete updated[name as keyof Puzzle];
       else Object.assign(updated, { [name]: value });
     }
+    // Like the real API, moving a puzzle out of in progress stops its timer.
+    if (patch.status && patch.status !== 'in_progress') updated = stopTimer(updated);
     if (patch.imageKey) updated.imageUrl = `${S3_URL}${patch.imageKey}?signed`;
+    db.puzzles.set(updated.id, updated);
+    return HttpResponse.json(updated);
+  }),
+
+  // The timer, following the real API's rules: starting moves the puzzle to in progress.
+  http.post('/api/puzzles/:id/timer/start', async ({ params, request }) => {
+    const existing = db.puzzles.get(params.id as string);
+    if (!existing) return HttpResponse.json({}, { status: 404 });
+    const { today } = (await request.json()) as StartTimerInput;
+    const updated: Puzzle = {
+      ...existing,
+      status: 'in_progress',
+      startedAt: existing.startedAt ?? today,
+      timerStartedAt: existing.timerStartedAt ?? new Date().toISOString(),
+    };
+    db.puzzles.set(updated.id, updated);
+    return HttpResponse.json(updated);
+  }),
+
+  http.post('/api/puzzles/:id/timer/stop', ({ params }) => {
+    const existing = db.puzzles.get(params.id as string);
+    if (!existing) return HttpResponse.json({}, { status: 404 });
+    const updated = stopTimer(existing);
     db.puzzles.set(updated.id, updated);
     return HttpResponse.json(updated);
   }),

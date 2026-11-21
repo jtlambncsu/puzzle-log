@@ -1,6 +1,13 @@
 import { randomUUID } from 'node:crypto';
-import type { CreatePuzzleInput, Puzzle, UpdatePuzzleInput } from '@puzzle-log/shared';
-import { newestFirst, newPuzzle, type PuzzleStore } from './types.js';
+import type { CreatePuzzleInput, Puzzle } from '@puzzle-log/shared';
+import {
+  ConflictError,
+  newestFirst,
+  newPuzzle,
+  type PuzzlePatch,
+  type PuzzleStore,
+  type TimerExpectation,
+} from './types.js';
 
 /** Used for local development and tests. Data resets on restart. */
 export class InMemoryPuzzleStore implements PuzzleStore {
@@ -21,9 +28,12 @@ export class InMemoryPuzzleStore implements PuzzleStore {
     return puzzle;
   }
 
-  async update(userId: string, id: string, patch: UpdatePuzzleInput) {
+  async update(userId: string, id: string, patch: PuzzlePatch, expect?: TimerExpectation) {
     const existing = await this.get(userId, id);
     if (!existing) return undefined;
+    if (expect && (existing.timerStartedAt ?? null) !== expect.timerStartedAt) {
+      throw new ConflictError();
+    }
     const updated: Puzzle = { ...existing };
     for (const [name, value] of Object.entries(patch)) {
       // JSON Merge Patch: null removes the field.

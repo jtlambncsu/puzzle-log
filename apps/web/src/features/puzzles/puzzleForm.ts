@@ -27,6 +27,7 @@ export const puzzleFormSchema = z.object({
     .string()
     .trim()
     .refine((value) => value === '' || /^[1-9]\d{0,5}$/.test(value), 'Enter a whole number'),
+  startedAt: z.string(),
   completedAt: z.string(),
   notes: notes.unwrap(),
   tags: z.array(tagSchema).max(MAX_TAGS),
@@ -43,11 +44,16 @@ export const emptyPuzzleForm: PuzzleFormValues = {
   status: 'done',
   brand: '',
   pieceCount: '',
+  startedAt: '',
   completedAt: '',
   notes: '',
   tags: [],
   barcode: '',
 };
+
+export function hasStarted(status: PuzzleFormValues['status']) {
+  return status === 'in_progress' || status === 'done';
+}
 
 /** Fills the form from a saved puzzle, for editing. */
 export function puzzleToFormValues(puzzle: Puzzle): PuzzleFormValues {
@@ -56,6 +62,7 @@ export function puzzleToFormValues(puzzle: Puzzle): PuzzleFormValues {
     status: puzzleStatus(puzzle),
     brand: puzzle.brand ?? '',
     pieceCount: puzzle.pieceCount ? String(puzzle.pieceCount) : '',
+    startedAt: puzzle.startedAt ?? '',
     completedAt: puzzle.completedAt ?? '',
     notes: puzzle.notes ?? '',
     tags: puzzle.tags ?? [],
@@ -70,7 +77,8 @@ export function toCreatePuzzleInput(values: PuzzleFormValues): CreatePuzzleInput
     status: values.status,
     brand: values.brand.trim() || undefined,
     pieceCount: values.pieceCount ? Number(values.pieceCount) : undefined,
-    // Only finished puzzles have a finished date.
+    // Only puzzles that were started have a start date, and only finished ones an end date.
+    startedAt: (hasStarted(values.status) && values.startedAt) || undefined,
     completedAt: (values.status === 'done' && values.completedAt) || undefined,
     notes: values.notes.trim() || undefined,
     tags: values.tags.length ? values.tags : undefined,
@@ -89,6 +97,7 @@ export function toUpdatePuzzleInput(values: PuzzleFormValues): UpdatePuzzleInput
     status: input.status,
     brand: input.brand ?? null,
     pieceCount: input.pieceCount ?? null,
+    startedAt: input.startedAt ?? null,
     completedAt: input.completedAt ?? null,
     notes: input.notes ?? null,
     tags: input.tags ?? null,

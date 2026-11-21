@@ -21,7 +21,7 @@ describe('puzzleStats', () => {
   );
 
   it('counts statuses, treating missing as done', () => {
-    expect(stats.statusCounts).toEqual({ done: 4, owned: 1, wishlist: 1 });
+    expect(stats.statusCounts).toEqual({ done: 4, in_progress: 0, owned: 1, wishlist: 1 });
   });
 
   it('only counts finished puzzles for pieces, years, brands and tags', () => {

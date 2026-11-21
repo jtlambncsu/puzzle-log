@@ -99,6 +99,16 @@ by S3 key. TanStack Query's cache is saved to IndexedDB, and the router waits fo
 restored, so the list, search and saved-barcode scans work with no signal. See
 [ADR 0020](decisions/0020-offline-pwa.md).
 
+### Timing a puzzle
+
+"Start puzzle" calls `POST /api/puzzles/:id/timer/start`. The API records the time on its own
+clock as `timerStartedAt`, marks the puzzle in progress and sets its start date. Pause calls
+`.../timer/stop`, which moves that span into the puzzle's `sessions`. Both writes are
+DynamoDB conditional updates ("only if the timer is still as I read it"), so a double tap or a
+second device can't record a session twice. The page only redraws the clock each second, so
+the timer keeps counting with the app closed. Marking a puzzle done stops its timer. See
+[ADR 0023](decisions/0023-puzzle-timer.md).
+
 ## Local development
 
 `npm run dev` runs the API on :3001 (in-memory storage, no login, uploads off) and the web

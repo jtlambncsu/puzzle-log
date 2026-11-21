@@ -11,7 +11,7 @@ import { Textarea } from '@/components/ui/textarea';
 import { nextRotation, type Rotation } from '@/lib/image';
 import { readPhotoDate } from '@/lib/photoDate';
 import { PhotoPreview } from './PhotoPreview';
-import { emptyPuzzleForm, puzzleFormSchema, type PuzzleFormValues } from './puzzleForm';
+import { emptyPuzzleForm, hasStarted, puzzleFormSchema, type PuzzleFormValues } from './puzzleForm';
 import { StatusPicker } from './StatusPicker';
 import { TagInput } from './TagInput';
 
@@ -139,6 +139,14 @@ export function PuzzleForm({
             />
             <FieldError errors={[errors.pieceCount]} />
           </Field>
+
+          {hasStarted(status) && (
+            <Field data-invalid={!!errors.startedAt}>
+              <FieldLabel htmlFor="startedAt">Started on</FieldLabel>
+              <Input id="startedAt" type="date" {...register('startedAt')} />
+              <FieldError errors={[errors.startedAt]} />
+            </Field>
+          )}
 
           {status === 'done' && (
             <Field data-invalid={!!errors.completedAt}>

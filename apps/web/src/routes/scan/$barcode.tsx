@@ -178,6 +178,13 @@ function MatchVerdict({ puzzles }: { puzzles: Puzzle[] }) {
       </Verdict>
     );
   }
+  if (statuses.has('in_progress')) {
+    return (
+      <Verdict tone="new" title="You're doing this one right now">
+        It's on your table. {extra}
+      </Verdict>
+    );
+  }
   if (statuses.has('owned')) {
     return (
       <Verdict tone="new" title="You already own this one">

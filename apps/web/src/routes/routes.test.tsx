@@ -494,6 +494,7 @@ describe('editing a puzzle', () => {
       status: 'done',
       brand: null,
       pieceCount: 1000,
+      startedAt: null,
       completedAt: null,
       notes: null,
       tags: ['Star Wars'],
@@ -536,21 +537,26 @@ describe('statuses', () => {
     expect([...db.puzzles.values()][0]?.completedAt).toBeUndefined();
   });
 
-  it('moves a puzzle along wishlist → owned → done with one tap each', async () => {
+  it('moves a puzzle along wishlist → owned → in progress → done with one tap each', async () => {
     const puzzle = db.add({ title: 'Someday', status: 'wishlist' });
     const user = userEvent.setup();
     renderApp(`/puzzles/${puzzle.id}`);
+    const today = new Date().toLocaleDateString('en-CA');
 
     await user.click(await screen.findByRole('button', { name: 'I bought it' }));
-    await user.click(await screen.findByRole('button', { name: 'Mark as done' }));
+    await user.click(await screen.findByRole('button', { name: 'Start puzzle' }));
+    // Starting runs the timer and records the start date.
+    expect(await screen.findByRole('button', { name: 'Pause' })).toBeInTheDocument();
+    expect(db.puzzles.get(puzzle.id)).toMatchObject({ status: 'in_progress', startedAt: today });
+    await user.click(screen.getByRole('button', { name: 'Mark as done' }));
 
     await waitFor(() => expect(db.puzzles.get(puzzle.id)?.status).toBe('done'));
-    expect(db.patches[0]).toEqual({ status: 'owned' });
-    expect(db.patches[1]).toEqual({
-      status: 'done',
-      completedAt: new Date().toLocaleDateString('en-CA'),
-    });
+    expect(db.patches).toEqual([{ status: 'owned' }, { status: 'done', completedAt: today }]);
+    // Finishing stopped the timer and kept the session.
+    expect(db.puzzles.get(puzzle.id)?.timerStartedAt).toBeUndefined();
+    expect(db.puzzles.get(puzzle.id)?.sessions).toHaveLength(1);
     expect(screen.queryByRole('button', { name: 'Mark as done' })).not.toBeInTheDocument();
+    expect(screen.queryByRole('button', { name: 'Pause' })).not.toBeInTheDocument();
   });
 });
 

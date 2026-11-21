@@ -35,7 +35,7 @@ describe('stats page', () => {
     expect(tile('Puzzles done')).toHaveTextContent('2');
     expect(tile('Pieces placed')).toHaveTextContent('1,500'); // owned puzzles don't count
     expect(tile(`Done in ${year}`)).toHaveTextContent('1');
-    expect(tile('Owned, not done')).toHaveTextContent('1');
+    expect(tile('Owned, not started')).toHaveTextContent('1');
     expect(tile('On the wishlist')).toHaveTextContent('1');
 
     // The chart's numbers are also available as a table.

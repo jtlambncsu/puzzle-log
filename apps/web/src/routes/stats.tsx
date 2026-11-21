@@ -7,6 +7,7 @@ import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
 import { RankedBars } from '@/features/stats/RankedBars';
 import { StatTile } from '@/features/stats/StatTile';
 import { YearChart } from '@/features/stats/YearChart';
+import { formatDuration } from '@/features/puzzles/format';
 import { puzzleStats } from '@/lib/stats';
 
 export const Route = createFileRoute('/stats')({
@@ -34,8 +35,15 @@ function StatsPage() {
         <StatTile label="Puzzles done" value={stats.statusCounts.done} />
         <StatTile label="Pieces placed" value={stats.piecesPlaced} />
         <StatTile label={`Done in ${new Date().getFullYear()}`} value={stats.doneThisYear} />
-        <StatTile label="Owned, not done" value={stats.statusCounts.owned} />
+        <StatTile label="In progress" value={stats.statusCounts.in_progress} />
+        <StatTile label="Owned, not started" value={stats.statusCounts.owned} />
         <StatTile label="On the wishlist" value={stats.statusCounts.wishlist} />
+        {stats.timeSpentMs > 0 && (
+          <StatTile label="Time puzzling" value={formatDuration(stats.timeSpentMs)} />
+        )}
+        {stats.piecesPerHour && (
+          <StatTile label="Pieces an hour" value={Math.round(stats.piecesPerHour)} />
+        )}
       </div>
 
       {stats.statusCounts.done === 0 ? (

@@ -2,6 +2,7 @@ import type {
   BarcodeLookupResult,
   CreatePuzzleInput,
   Puzzle,
+  StartTimerInput,
   UpdatePuzzleInput,
   UploadTarget,
 } from '@puzzle-log/shared';
@@ -27,6 +28,8 @@ function messageForStatus(status: number) {
       return 'Your session has expired. Sign in again.';
     case 404:
       return 'Not found';
+    case 409:
+      return 'This puzzle just changed somewhere else. Reload and try again.';
     case 501:
       return "Photo uploads aren't set up on this server"; // local dev has no S3
     case 503:
@@ -70,6 +73,14 @@ export function createPuzzlesApi(getAccessToken: GetAccessToken) {
         method: 'PATCH',
         body: JSON.stringify(patch),
       }),
+    /** Starts the timer (the API records the time). `today` is the local date. */
+    startTimer: (id: string, today: string) =>
+      request<Puzzle>(`/puzzles/${encodeURIComponent(id)}/timer/start`, {
+        method: 'POST',
+        body: JSON.stringify({ today } satisfies StartTimerInput),
+      }),
+    stopTimer: (id: string) =>
+      request<Puzzle>(`/puzzles/${encodeURIComponent(id)}/timer/stop`, { method: 'POST' }),
     remove: (id: string) =>
       request<void>(`/puzzles/${encodeURIComponent(id)}`, { method: 'DELETE' }),
     lookupBarcode: (barcode: string) =>
