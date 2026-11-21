@@ -61,19 +61,29 @@ export class DynamoPuzzleStore implements PuzzleStore {
   }
 
   async update(userId: string, id: string, patch: UpdatePuzzleInput) {
-    // Build "SET #title = :title, ..." from the patch. Names and values go through
-    // placeholders, so field names that are reserved words in DynamoDB are safe.
+    // JSON Merge Patch: values are SET, nulls are REMOVEd, omitted fields are untouched.
+    // Names and values go through placeholders, so reserved words in DynamoDB are safe.
     const entries = Object.entries(patch).filter(([, value]) => value !== undefined);
+    const toSet = entries.filter(([, value]) => value !== null);
+    const toRemove = entries.filter(([, value]) => value === null);
+    const clauses = [
+      toSet.length && `SET ${toSet.map(([name]) => `#${name} = :${name}`).join(', ')}`,
+      toRemove.length && `REMOVE ${toRemove.map(([name]) => `#${name}`).join(', ')}`,
+    ].filter(Boolean);
+
     try {
       const { Attributes } = await this.client.send(
         new UpdateCommand({
           TableName: this.tableName,
           Key: { userId, id },
-          UpdateExpression: `SET ${entries.map(([name]) => `#${name} = :${name}`).join(', ')}`,
+          UpdateExpression: clauses.join(' '),
           ExpressionAttributeNames: Object.fromEntries(entries.map(([name]) => [`#${name}`, name])),
-          ExpressionAttributeValues: Object.fromEntries(
-            entries.map(([name, value]) => [`:${name}`, value]),
-          ),
+          // DynamoDB rejects an empty values map, e.g. when only removing fields.
+          ...(toSet.length && {
+            ExpressionAttributeValues: Object.fromEntries(
+              toSet.map(([name, value]) => [`:${name}`, value]),
+            ),
+          }),
           // Without this, UpdateItem would create a new item for an unknown id.
           ConditionExpression: 'attribute_exists(id)',
           ReturnValues: 'ALL_NEW',

@@ -20,6 +20,7 @@ export function newBulkItem(photo: File): BulkItem {
   return { photo, title: '', pieceCount: '', completedAt: '' };
 }
 
-export function bulkItemToInput({ photo: _photo, ...fields }: BulkItem) {
-  return toCreatePuzzleInput({ ...emptyPuzzleForm, ...fields });
+/** `sharedTags` come from the "Tags for all photos" field and apply to every row. */
+export function bulkItemToInput({ photo: _photo, ...fields }: BulkItem, sharedTags: string[] = []) {
+  return toCreatePuzzleInput({ ...emptyPuzzleForm, ...fields, tags: sharedTags });
 }

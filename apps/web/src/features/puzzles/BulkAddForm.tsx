@@ -10,7 +10,7 @@ import {
   RotateCwIcon,
   Trash2Icon,
 } from 'lucide-react';
-import { puzzleKeys, savePuzzle, useApi } from '@/api/queries';
+import { puzzleKeys, savePuzzle, useAllTags, useApi } from '@/api/queries';
 import { Button } from '@/components/ui/button';
 import { Card } from '@/components/ui/card';
 import { Field, FieldDescription, FieldError, FieldLabel } from '@/components/ui/field';
@@ -26,6 +26,7 @@ import {
   type BulkFormValues,
 } from './bulkForm';
 import { PhotoPreview } from './PhotoPreview';
+import { TagInput } from './TagInput';
 
 /** Uploads at once: fast on a good connection without saturating a phone's. */
 const CONCURRENT_SAVES = 3;
@@ -48,6 +49,10 @@ export function BulkAddForm({ onDone }: { onDone: (result: BulkSaveResult) => vo
   const api = useApi();
   const queryClient = useQueryClient();
   const pickerId = useId();
+  const tagsId = useId();
+  const tagSuggestions = useAllTags();
+  // Tags for the whole batch, e.g. picking 10 Star Wars photos and tagging them all at once.
+  const [sharedTags, setSharedTags] = useState<string[]>([]);
 
   const {
     control,
@@ -102,7 +107,7 @@ export function BulkAddForm({ onDone }: { onDone: (result: BulkSaveResult) => vo
       setStatus(id, { state: 'saving' });
       try {
         await savePuzzle(api, {
-          input: bulkItemToInput(item),
+          input: bulkItemToInput(item, sharedTags),
           photo: item.photo,
           rotation: rotations[id],
         });
@@ -150,6 +155,19 @@ export function BulkAddForm({ onDone }: { onDone: (result: BulkSaveResult) => vo
         }}
       />
       <FieldError errors={[errors.items?.root, errors.items]} />
+
+      {fields.length > 0 && (
+        <Field>
+          <FieldLabel htmlFor={tagsId}>Tags for all photos</FieldLabel>
+          <TagInput
+            id={tagsId}
+            value={sharedTags}
+            onChange={setSharedTags}
+            suggestions={tagSuggestions}
+            disabled={isSubmitting}
+          />
+        </Field>
+      )}
 
       <ol className="space-y-3">
         {fields.map((field, index) => {

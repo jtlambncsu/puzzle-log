@@ -77,6 +77,13 @@ object, and calls `PATCH /api/puzzles/:id` with the new `imageKey`. The API dele
 object. New photos are rotated the same way during upload. See
 [ADR 0017](decisions/0017-photo-rotation.md).
 
+### Searching and filtering
+
+The list page reads `q` and `tag` from the URL (`validateSearch` with Zod) and filters the
+cached list in the browser on every keystroke: every search word must appear in the title,
+brand, notes, tags or piece count. Tag chips come from the tags in use. Editing a puzzle sends
+a JSON Merge Patch (`null` removes a field). See [ADR 0018](decisions/0018-search-tags-editing.md).
+
 ## Local development
 
 `npm run dev` runs the API on :3001 (in-memory storage, no login, uploads off) and the web

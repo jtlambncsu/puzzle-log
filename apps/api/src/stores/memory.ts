@@ -24,7 +24,12 @@ export class InMemoryPuzzleStore implements PuzzleStore {
   async update(userId: string, id: string, patch: UpdatePuzzleInput) {
     const existing = await this.get(userId, id);
     if (!existing) return undefined;
-    const updated = { ...existing, ...patch };
+    const updated: Puzzle = { ...existing };
+    for (const [name, value] of Object.entries(patch)) {
+      // JSON Merge Patch: null removes the field.
+      if (value === null) delete updated[name as keyof Puzzle];
+      else if (value !== undefined) Object.assign(updated, { [name]: value });
+    }
     this.puzzles.set(id, updated);
     return updated;
   }

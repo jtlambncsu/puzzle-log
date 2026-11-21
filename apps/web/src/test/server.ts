@@ -9,9 +9,11 @@ import type { CreatePuzzleInput, Puzzle, UpdatePuzzleInput } from '@puzzle-log/s
 export const db = {
   puzzles: new Map<string, Puzzle>(),
   uploads: [] as FormData[],
+  patches: [] as UpdatePuzzleInput[],
   reset() {
     this.puzzles.clear();
     this.uploads = [];
+    this.patches = [];
   },
   add(puzzle: Partial<Puzzle> & { title: string }) {
     const full: Puzzle = {
@@ -49,11 +51,14 @@ export const handlers = [
     const existing = db.puzzles.get(params.id as string);
     if (!existing) return HttpResponse.json({}, { status: 404 });
     const patch = (await request.json()) as UpdatePuzzleInput;
-    const updated: Puzzle = {
-      ...existing,
-      ...patch,
-      ...(patch.imageKey && { imageUrl: `${S3_URL}${patch.imageKey}?signed` }),
-    };
+    db.patches.push(patch);
+    const updated: Puzzle = { ...existing };
+    for (const [name, value] of Object.entries(patch)) {
+      // JSON Merge Patch, like the real API: null removes the field.
+      if (value === null) delete updated[name as keyof Puzzle];
+      else Object.assign(updated, { [name]: value });
+    }
+    if (patch.imageKey) updated.imageUrl = `${S3_URL}${patch.imageKey}?signed`;
     db.puzzles.set(updated.id, updated);
     return HttpResponse.json(updated);
   }),

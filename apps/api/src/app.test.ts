@@ -162,6 +162,30 @@ describe('updating puzzles', () => {
     expect(res.body).toMatchObject({ title: 'The Starry Night', pieceCount: 1000 });
   });
 
+  it('removes fields set to null and stores tags without duplicates', async () => {
+    const app = testApp();
+    const puzzle = await createPuzzle(app, { title: 'Hoth', brand: 'Ravensburger' });
+
+    const res = await request(app)
+      .patch(`/api/puzzles/${puzzle.id}`)
+      .set(alice)
+      .send({ brand: null, tags: ['Star Wars', ' star wars ', 'Snow'] });
+
+    expect(res.status).toBe(200);
+    expect(res.body).not.toHaveProperty('brand');
+    expect(res.body.tags).toEqual(['Star Wars', 'Snow']);
+  });
+
+  it("won't remove the title", async () => {
+    const app = testApp();
+    const puzzle = await createPuzzle(app, { title: 'Keep me' });
+    const res = await request(app)
+      .patch(`/api/puzzles/${puzzle.id}`)
+      .set(alice)
+      .send({ title: null });
+    expect(res.status).toBe(400);
+  });
+
   it("can't update another user's puzzle", async () => {
     const app = testApp();
     const puzzle = await createPuzzle(app, { title: 'Mine' });

@@ -1,7 +1,14 @@
-import { QueryClient, queryOptions, useMutation, useQueryClient } from '@tanstack/react-query';
+import {
+  QueryClient,
+  queryOptions,
+  useMutation,
+  useQuery,
+  useQueryClient,
+} from '@tanstack/react-query';
 import { useRouteContext } from '@tanstack/react-router';
-import type { CreatePuzzleInput, Puzzle } from '@puzzle-log/shared';
+import type { CreatePuzzleInput, Puzzle, UpdatePuzzleInput } from '@puzzle-log/shared';
 import { compressImage, type Rotation } from '@/lib/image';
+import { tagCounts } from '@/lib/search';
 import { ApiError, uploadPhoto, type PuzzlesApi } from './client';
 
 /**
@@ -23,6 +30,16 @@ export const puzzlesQueryOptions = (api: PuzzlesApi) =>
 
 export const puzzleQueryOptions = (api: PuzzlesApi, id: string) =>
   queryOptions({ queryKey: puzzleKeys.detail(id), queryFn: () => api.get(id) });
+
+/** Every tag in use, most used first: suggestions for the tag input. */
+export function useAllTags() {
+  const api = useApi();
+  const { data = [] } = useQuery({
+    ...puzzlesQueryOptions(api),
+    select: (puzzles) => tagCounts(puzzles).map(({ tag }) => tag),
+  });
+  return data;
+}
 
 /** The API client lives in the router context (see `router.tsx`). */
 export function useApi() {
@@ -82,6 +99,19 @@ export function useCreatePuzzle() {
   return useMutation({
     mutationFn: (variables: CreatePuzzleVariables) => savePuzzle(api, variables),
     onSuccess: () => queryClient.invalidateQueries({ queryKey: puzzleKeys.all }),
+  });
+}
+
+export function useUpdatePuzzle() {
+  const api = useApi();
+  const queryClient = useQueryClient();
+
+  return useMutation({
+    mutationFn: ({ id, patch }: { id: string; patch: UpdatePuzzleInput }) => api.update(id, patch),
+    onSuccess: (updated) => {
+      queryClient.setQueryData(puzzleKeys.detail(updated.id), updated);
+      return queryClient.invalidateQueries({ queryKey: puzzleKeys.list() });
+    },
   });
 }
 

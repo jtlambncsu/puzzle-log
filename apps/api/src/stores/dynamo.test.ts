@@ -70,6 +70,24 @@ describe('DynamoPuzzleStore', () => {
     });
   });
 
+  it('removes fields set to null, and can only remove', async () => {
+    dynamo.on(UpdateCommand).resolves({ Attributes: { id: 'p1' } });
+
+    await store.update('u1', 'p1', { brand: null, tags: ['Star Wars'] });
+    await store.update('u1', 'p1', { notes: null });
+
+    const [mixed, removeOnly] = dynamo
+      .commandCalls(UpdateCommand)
+      .map((call) => call.args[0].input);
+    expect(mixed).toMatchObject({
+      UpdateExpression: 'SET #tags = :tags REMOVE #brand',
+      ExpressionAttributeNames: { '#brand': 'brand', '#tags': 'tags' },
+      ExpressionAttributeValues: { ':tags': ['Star Wars'] },
+    });
+    expect(removeOnly?.UpdateExpression).toBe('REMOVE #notes');
+    expect(removeOnly).not.toHaveProperty('ExpressionAttributeValues');
+  });
+
   it("returns undefined when updating an item that doesn't exist", async () => {
     dynamo
       .on(UpdateCommand)
