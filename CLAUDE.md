@@ -33,3 +33,5 @@ Context for AI assistants (and humans) picking up this repo. Read `docs/ARCHITEC
 - Stateful AWS resources are `RETAIN`ed; changing a DynamoDB key schema creates a new table.
 - After infra changes deploy, verify against the live API (e.g. `curl` health, 401 without a
   token, CORS preflight 2xx).
+- New HTTP methods or request headers in the web client must also be added to API Gateway's
+  `corsPreflight` (and the S3 bucket's CORS if the browser calls S3). Tests can't catch this.

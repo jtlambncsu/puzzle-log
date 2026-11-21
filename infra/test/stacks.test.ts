@@ -32,6 +32,15 @@ describe('ApiStack', () => {
     });
   });
 
+  it('allows every HTTP method the web app uses in CORS', () => {
+    // Keep in sync with apps/web/src/api/client.ts.
+    template.hasResourceProperties('AWS::ApiGatewayV2::Api', {
+      CorsConfiguration: Match.objectLike({
+        AllowMethods: Match.arrayWith(['GET', 'POST', 'PATCH', 'DELETE']),
+      }),
+    });
+  });
+
   it('adds CORS headers for the allowed origins', () => {
     template.hasResourceProperties('AWS::ApiGatewayV2::Api', {
       CorsConfiguration: Match.objectLike({

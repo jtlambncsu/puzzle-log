@@ -109,7 +109,14 @@ export class ApiStack extends Stack {
       corsPreflight: {
         allowOrigins: origins,
         allowHeaders: ['authorization', 'content-type'],
-        allowMethods: [CorsHttpMethod.GET, CorsHttpMethod.POST, CorsHttpMethod.DELETE],
+        // Every method the web app calls. A method missing here makes the browser block
+        // the request, even though the API itself supports it.
+        allowMethods: [
+          CorsHttpMethod.GET,
+          CorsHttpMethod.POST,
+          CorsHttpMethod.PATCH,
+          CorsHttpMethod.DELETE,
+        ],
         maxAge: Duration.days(1),
       },
       createDefaultStage: false,

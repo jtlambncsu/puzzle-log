@@ -34,6 +34,23 @@ every real request would have been blocked.
 **Takeaway:** preflights never carry credentials, so any auth layer in front of a
 cross-origin API must let them through. Test with `curl -X OPTIONS -H 'Origin: …'`.
 
+## A new HTTP method missing from the CORS allow-list
+
+**Symptom:** found right after merging the photo-rotation PR, before it was used: a preflight
+for `PATCH` from the web app's origin returned 204 with **no** CORS headers.
+
+**Cause:** the new `PATCH /api/puzzles/:id` endpoint worked (and was tested) in the API, but
+API Gateway's CORS configuration only listed `GET, POST, DELETE`. Browsers check the preflight
+response before sending a cross-origin `PATCH`, so the request would have been blocked.
+Unit tests and MSW don't enforce CORS, so nothing failed.
+
+**Fix:** add `PATCH` to `allowMethods`, plus a CDK test listing every method the web client
+uses.
+
+**Takeaway:** CORS is enforced by the browser, not your server or test runner. Adding an HTTP
+method or a custom header means updating the CORS config, and checking with
+`curl -X OPTIONS -H 'Origin: …' -H 'Access-Control-Request-Method: PATCH'` after deploy.
+
 ## An unset GitHub variable is an empty string
 
 **Symptom:** Cognito's login page showed "An error was encountered with the requested page."
