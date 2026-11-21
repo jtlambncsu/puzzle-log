@@ -1,6 +1,6 @@
 import { App } from 'aws-cdk-lib';
 import { Match, Template } from 'aws-cdk-lib/assertions';
-import { describe, expect, it } from 'vitest';
+import { describe, it } from 'vitest';
 import { ApiStack } from '../lib/api-stack.js';
 import { GithubDeployStack } from '../lib/github-deploy-stack.js';
 
@@ -46,13 +46,30 @@ describe('ApiStack', () => {
 
 describe('GithubDeployStack', () => {
   const template = Template.fromStack(
-    new GithubDeployStack(new App(), 'Deploy', { githubRepo: 'me/puzzle-log' }),
+    new GithubDeployStack(new App(), 'Deploy', {
+      githubRepo: 'me/puzzle-log',
+      githubIds: { owner: 11, repo: 22 },
+    }),
   );
 
-  it('only trusts the main branch of the repo', () => {
-    const roles = template.findResources('AWS::IAM::Role');
-    const trust = JSON.stringify(Object.values(roles)[0]?.Properties.AssumeRolePolicyDocument);
-    expect(trust).toContain('repo:me/puzzle-log:ref:refs/heads/main');
+  it('only trusts the main branch of the repo, in both subject formats', () => {
+    template.hasResourceProperties('AWS::IAM::Role', {
+      AssumeRolePolicyDocument: {
+        Statement: [
+          Match.objectLike({
+            Condition: {
+              StringEquals: {
+                'token.actions.githubusercontent.com:aud': 'sts.amazonaws.com',
+                'token.actions.githubusercontent.com:sub': [
+                  'repo:me@11/puzzle-log@22:ref:refs/heads/main',
+                  'repo:me/puzzle-log:ref:refs/heads/main',
+                ],
+              },
+            },
+          }),
+        ],
+      },
+    });
   });
 
   it('can only assume the CDK bootstrap roles', () => {

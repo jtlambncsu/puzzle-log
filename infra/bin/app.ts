@@ -19,11 +19,20 @@ new ApiStack(app, 'PuzzleLogApi', { env, allowedOrigins });
 
 /**
  * One-time setup, deployed from your machine: lets GitHub Actions deploy PuzzleLogApi.
- *   npx cdk deploy PuzzleLogGithubDeploy -c githubRepo=owner/repo
+ *   npx cdk deploy PuzzleLogGithubDeploy
+ *
+ * For a fork, pass -c githubRepo=owner/repo -c githubOwnerId=<id> -c githubRepoId=<id>
+ * (IDs from https://api.github.com/repos/<owner>/<repo>: `owner.id` and `id`).
  */
-const githubRepo = app.node.tryGetContext('githubRepo') ?? 'jtlambncsu/puzzle-log';
+const githubRepo = app.node.tryGetContext('githubRepo');
 new GithubDeployStack(app, 'PuzzleLogGithubDeploy', {
   env,
-  githubRepo,
+  githubRepo: githubRepo ?? 'jtlambncsu/puzzle-log',
+  githubIds: githubRepo
+    ? app.node.tryGetContext('githubOwnerId') && {
+        owner: Number(app.node.tryGetContext('githubOwnerId')),
+        repo: Number(app.node.tryGetContext('githubRepoId')),
+      }
+    : { owner: 32425340, repo: 1466053692 },
   existingOidcProviderArn: app.node.tryGetContext('existingOidcProviderArn'),
 });

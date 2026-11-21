@@ -11,6 +11,11 @@ import type { Construct } from 'constructs';
 export interface GithubDeployStackProps extends StackProps {
   /** `owner/repo` allowed to deploy. */
   githubRepo: string;
+  /**
+   * Numeric GitHub owner and repository IDs. Repos created after July 15, 2026 put them in
+   * the OIDC subject claim (`repo:owner@123/name@456:...`), so the trust policy needs them.
+   */
+  githubIds?: { owner: number; repo: number };
   /** Pass this if the account already has a token.actions.githubusercontent.com provider. */
   existingOidcProviderArn?: string;
 }
@@ -27,6 +32,16 @@ export class GithubDeployStack extends Stack {
 
     const issuer = 'token.actions.githubusercontent.com';
 
+    // Accept both the immutable (ID-based) subject and the legacy name-only one, so the
+    // role works whichever format GitHub uses for this repo.
+    const [owner, repo] = props.githubRepo.split('/');
+    const subjects = [`repo:${props.githubRepo}:ref:refs/heads/main`];
+    if (props.githubIds) {
+      subjects.unshift(
+        `repo:${owner}@${props.githubIds.owner}/${repo}@${props.githubIds.repo}:ref:refs/heads/main`,
+      );
+    }
+
     const provider: IOidcProvider = props.existingOidcProviderArn
       ? OidcProviderNative.fromOidcProviderArn(this, 'GithubOidc', props.existingOidcProviderArn)
       : new OidcProviderNative(this, 'GithubOidc', {
@@ -40,7 +55,7 @@ export class GithubDeployStack extends Stack {
       assumedBy: new OpenIdConnectPrincipal(provider, {
         StringEquals: {
           [`${issuer}:aud`]: 'sts.amazonaws.com',
-          [`${issuer}:sub`]: `repo:${props.githubRepo}:ref:refs/heads/main`,
+          [`${issuer}:sub`]: subjects,
         },
       }),
     });
