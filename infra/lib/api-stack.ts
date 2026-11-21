@@ -99,8 +99,7 @@ export class ApiStack extends Stack {
         userPoolClients: [auth.client],
       }),
       defaultIntegration: integration,
-      // API Gateway answers CORS preflight requests itself, before the authorizer runs.
-      // (It also replaces any CORS headers the Lambda returns.)
+      // CORS headers API Gateway adds to every response (replacing any the Lambda sends).
       corsPreflight: {
         allowOrigins: origins,
         allowHeaders: ['authorization', 'content-type'],
@@ -108,6 +107,17 @@ export class ApiStack extends Stack {
         maxAge: Duration.days(1),
       },
       createDefaultStage: false,
+    });
+
+    // Browsers send CORS preflights (OPTIONS) without a token. With a `$default` route,
+    // API Gateway routes them like any request, so the authorizer would reject them with
+    // 401 and the browser would block the real request. Let them through unauthenticated;
+    // Express answers them.
+    api.addRoutes({
+      path: '/{proxy+}',
+      methods: [HttpMethod.OPTIONS],
+      integration,
+      authorizer: new HttpNoneAuthorizer(),
     });
 
     api.addRoutes({

@@ -21,10 +21,18 @@ describe('ApiStack', () => {
       RouteKey: 'GET /api/health',
       AuthorizationType: 'NONE',
     });
-    template.resourceCountIs('AWS::ApiGatewayV2::Route', 2);
+    template.resourceCountIs('AWS::ApiGatewayV2::Route', 3);
   });
 
-  it('answers CORS preflights at API Gateway, before the authorizer', () => {
+  it('lets CORS preflights through without a token', () => {
+    // A preflight rejected with 401 makes the browser block the real request.
+    template.hasResourceProperties('AWS::ApiGatewayV2::Route', {
+      RouteKey: 'OPTIONS /{proxy+}',
+      AuthorizationType: 'NONE',
+    });
+  });
+
+  it('adds CORS headers for the allowed origins', () => {
     template.hasResourceProperties('AWS::ApiGatewayV2::Api', {
       CorsConfiguration: Match.objectLike({
         AllowOrigins: ['https://puzzles.example'],

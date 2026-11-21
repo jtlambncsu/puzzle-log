@@ -21,6 +21,15 @@ describe('API', () => {
     expect(res.body).toEqual({ status: 'ok' });
   });
 
+  it('answers CORS preflights without sign-in', async () => {
+    const res = await request(testApp())
+      .options('/api/puzzles')
+      .set('Origin', 'https://puzzles.example')
+      .set('Access-Control-Request-Method', 'GET')
+      .set('Access-Control-Request-Headers', 'authorization');
+    expect(res.status).toBe(204);
+  });
+
   it('requires sign-in for puzzles and uploads', async () => {
     const app = testApp();
     expect((await request(app).get('/api/puzzles')).status).toBe(401);

@@ -124,8 +124,9 @@ variables are baked in at build time, so redeploy after changing one.
 
 Sign-up is turned off, so users are created by hand:
 
-1. AWS console → **Cognito → User pools** → the `PuzzleLogApi` pool → **Users → Create
-   user**.
+1. AWS console, region **us-east-1** → **Cognito → User pools** → the pool whose **User
+   pool ID** matches the `UserPoolId` stack output (its name is generated, like
+   `AuthUserPool…`) → **Users → Create user**.
 2. Choose **Send an email invitation**, enter your email, check **Mark email address as
    verified**, and let Cognito generate a temporary password.
 3. Open the web app, sign in with the emailed password, and choose a new one.
