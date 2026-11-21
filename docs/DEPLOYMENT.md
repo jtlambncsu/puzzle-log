@@ -67,7 +67,10 @@ AWS_REGION=us-east-1 npx cdk deploy PuzzleLogGithubDeploy \
   -c existingOidcProviderArn=arn:aws:iam::<ACCOUNT_ID>:oidc-provider/token.actions.githubusercontent.com
 ```
 
-If you fork or rename the repo, add `-c githubRepo=<owner>/<repo>`.
+If you fork or rename the repo, add `-c githubRepo=<owner>/<repo> -c githubOwnerId=<id>
+-c githubRepoId=<id>`. The IDs are `owner.id` and `id` from
+`https://api.github.com/repos/<owner>/<repo>`. Repos created after July 15, 2026 put them in
+GitHub's OIDC token, so the role must know them.
 
 ### 4. Tell GitHub about the role
 
@@ -114,6 +117,18 @@ variables are baked in at build time, so redeploy after changing one.
   API (there's only one environment for now).
 - Preview infrastructure changes locally: `cd infra && npx cdk diff PuzzleLogApi`.
 - View API logs: CloudWatch → Log groups → `PuzzleLogApi-ApiLogs…`.
+
+## Troubleshooting
+
+**`Could not assume role with OIDC: Not authorized to perform sts:AssumeRoleWithWebIdentity`**
+means the role's trust policy doesn't match the token GitHub sent. Check, in order:
+
+- The role was deployed from the current code (`npx cdk deploy PuzzleLogGithubDeploy`).
+  It trusts both GitHub subject formats: `repo:owner@ID/name@ID:ref:refs/heads/main` and
+  the legacy `repo:owner/name:ref:refs/heads/main`.
+- The job ran on `main`. The role trusts no other branch, so PR runs can't deploy.
+- IAM → Identity providers has `token.actions.githubusercontent.com` with audience
+  `sts.amazonaws.com`.
 
 ## Security and cost notes
 
