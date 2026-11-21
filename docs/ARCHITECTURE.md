@@ -51,13 +51,23 @@ Each significant choice has an [ADR](decisions/README.md) explaining why.
 
 ### Adding a puzzle with a photo
 
-1. React Hook Form validates the fields with Zod.
-2. The photo is compressed in the browser (canvas, max 2000 px JPEG).
-3. `POST /api/uploads` returns a presigned S3 POST for `uploads/<userId>/<uuid>`.
-4. The browser uploads the photo directly to S3.
-5. `POST /api/puzzles` saves the puzzle with that `imageKey`. The API checks the key belongs
+1. When a photo is picked, its EXIF capture date pre-fills "Finished on" (unless a date was
+   already entered).
+2. React Hook Form validates the fields with Zod.
+3. The photo is compressed in the browser (canvas, max 2000 px JPEG), which strips its
+   metadata.
+4. `POST /api/uploads` returns a presigned S3 POST for `uploads/<userId>/<uuid>`.
+5. The browser uploads the photo directly to S3.
+6. `POST /api/puzzles` saves the puzzle with that `imageKey`. The API checks the key belongs
    to the user.
-6. The mutation invalidates the `['puzzles']` queries, and the app navigates to the list.
+7. The mutation invalidates the `['puzzles']` queries, and the app navigates to the list.
+
+### Adding several puzzles at once
+
+`/puzzles/bulk` turns each picked photo into a row (`useFieldArray`) with its EXIF date
+filled in. Saving runs the same steps as above for each row, three at a time, tracks a status
+per row, skips rows that already saved when retrying, and invalidates the cache once at the
+end. See [ADR 0016](decisions/0016-bulk-add.md).
 
 ## Local development
 

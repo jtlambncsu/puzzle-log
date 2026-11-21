@@ -11,6 +11,7 @@
 import { Route as rootRouteImport } from './routes/__root'
 import { Route as IndexRouteImport } from './routes/index'
 import { Route as PuzzlesPuzzleIdRouteImport } from './routes/puzzles/$puzzleId'
+import { Route as PuzzlesBulkRouteImport } from './routes/puzzles/bulk'
 import { Route as PuzzlesNewRouteImport } from './routes/puzzles/new'
 
 const IndexRoute = IndexRouteImport.update({
@@ -23,6 +24,11 @@ const PuzzlesPuzzleIdRoute = PuzzlesPuzzleIdRouteImport.update({
   path: '/puzzles/$puzzleId',
   getParentRoute: () => rootRouteImport,
 } as any)
+const PuzzlesBulkRoute = PuzzlesBulkRouteImport.update({
+  id: '/puzzles/bulk',
+  path: '/puzzles/bulk',
+  getParentRoute: () => rootRouteImport,
+} as any)
 const PuzzlesNewRoute = PuzzlesNewRouteImport.update({
   id: '/puzzles/new',
   path: '/puzzles/new',
@@ -32,30 +38,34 @@ const PuzzlesNewRoute = PuzzlesNewRouteImport.update({
 export interface FileRoutesByFullPath {
   '/': typeof IndexRoute
   '/puzzles/$puzzleId': typeof PuzzlesPuzzleIdRoute
+  '/puzzles/bulk': typeof PuzzlesBulkRoute
   '/puzzles/new': typeof PuzzlesNewRoute
 }
 export interface FileRoutesByTo {
   '/': typeof IndexRoute
   '/puzzles/$puzzleId': typeof PuzzlesPuzzleIdRoute
+  '/puzzles/bulk': typeof PuzzlesBulkRoute
   '/puzzles/new': typeof PuzzlesNewRoute
 }
 export interface FileRoutesById {
   __root__: typeof rootRouteImport
   '/': typeof IndexRoute
   '/puzzles/$puzzleId': typeof PuzzlesPuzzleIdRoute
+  '/puzzles/bulk': typeof PuzzlesBulkRoute
   '/puzzles/new': typeof PuzzlesNewRoute
 }
 export interface FileRouteTypes {
   fileRoutesByFullPath: FileRoutesByFullPath
-  fullPaths: '/' | '/puzzles/$puzzleId' | '/puzzles/new'
+  fullPaths: '/' | '/puzzles/$puzzleId' | '/puzzles/bulk' | '/puzzles/new'
   fileRoutesByTo: FileRoutesByTo
-  to: '/' | '/puzzles/$puzzleId' | '/puzzles/new'
-  id: '__root__' | '/' | '/puzzles/$puzzleId' | '/puzzles/new'
+  to: '/' | '/puzzles/$puzzleId' | '/puzzles/bulk' | '/puzzles/new'
+  id: '__root__' | '/' | '/puzzles/$puzzleId' | '/puzzles/bulk' | '/puzzles/new'
   fileRoutesById: FileRoutesById
 }
 export interface RootRouteChildren {
   IndexRoute: typeof IndexRoute
   PuzzlesPuzzleIdRoute: typeof PuzzlesPuzzleIdRoute
+  PuzzlesBulkRoute: typeof PuzzlesBulkRoute
   PuzzlesNewRoute: typeof PuzzlesNewRoute
 }
 
@@ -75,6 +85,13 @@ declare module '@tanstack/react-router' {
       preLoaderRoute: typeof PuzzlesPuzzleIdRouteImport
       parentRoute: typeof rootRouteImport
     }
+    '/puzzles/bulk': {
+      id: '/puzzles/bulk'
+      path: '/puzzles/bulk'
+      fullPath: '/puzzles/bulk'
+      preLoaderRoute: typeof PuzzlesBulkRouteImport
+      parentRoute: typeof rootRouteImport
+    }
     '/puzzles/new': {
       id: '/puzzles/new'
       path: '/puzzles/new'
@@ -88,6 +105,7 @@ declare module '@tanstack/react-router' {
 const rootRouteChildren: RootRouteChildren = {
   IndexRoute: IndexRoute,
   PuzzlesPuzzleIdRoute: PuzzlesPuzzleIdRoute,
+  PuzzlesBulkRoute: PuzzlesBulkRoute,
   PuzzlesNewRoute: PuzzlesNewRoute,
 }
 export const routeTree = rootRouteImport
