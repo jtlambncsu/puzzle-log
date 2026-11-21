@@ -15,9 +15,16 @@ const allowedOrigins = (app.node.tryGetContext('allowedOrigins') ?? process.env.
   .map((origin: string) => origin.trim())
   .filter(Boolean);
 
-/** Comma-separated web app URLs that login may redirect back to (your Vercel URL). */
-const webUrls = (app.node.tryGetContext('webUrls') ?? process.env.WEB_URLS)
-  ?.split(',')
+/**
+ * Web app URLs that login may redirect back to. Override with a comma-separated
+ * `webUrls` context value or the WEB_URLS GitHub variable.
+ */
+const webUrls: string[] = (
+  app.node.tryGetContext('webUrls') ??
+  process.env.WEB_URLS ??
+  'https://puzzle-log-one.vercel.app'
+)
+  .split(',')
   .map((url: string) => url.trim())
   .filter(Boolean);
 

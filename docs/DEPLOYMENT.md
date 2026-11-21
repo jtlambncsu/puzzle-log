@@ -81,11 +81,11 @@ variable**. Use repository variables, not secrets (the workflow reads `vars.*`) 
 environment variables (the deploy job doesn't use a GitHub environment, and the AWS role
 only trusts the `main` branch identity):
 
-| Variable              | Value                                                                                                                                          |
-| --------------------- | ---------------------------------------------------------------------------------------------------------------------------------------------- |
-| `AWS_DEPLOY_ROLE_ARN` | The `DeployRoleArn` from step 3                                                                                                                |
-| `AWS_REGION`          | `us-east-1` (optional; this is the default)                                                                                                    |
-| `WEB_URLS`            | Your Vercel production URL, e.g. `https://puzzle-log.vercel.app` (comma-separate several). Login can only redirect back to these and localhost |
+| Variable              | Value                                                                                                                                                    |
+| --------------------- | -------------------------------------------------------------------------------------------------------------------------------------------------------- |
+| `AWS_DEPLOY_ROLE_ARN` | The `DeployRoleArn` from step 3                                                                                                                          |
+| `AWS_REGION`          | `us-east-1` (optional; this is the default)                                                                                                              |
+| `WEB_URLS`            | Optional. Overrides the web app URLs login may redirect to (comma-separated). Defaults to `https://puzzle-log-one.vercel.app`, set in `infra/bin/app.ts` |
 
 From now on, every push to `main` runs the checks and then the `deploy-api` job.
 
