@@ -3,7 +3,7 @@ import { GetObjectCommand, S3Client } from '@aws-sdk/client-s3';
 import { createPresignedPost } from '@aws-sdk/s3-presigned-post';
 import { getSignedUrl } from '@aws-sdk/s3-request-presigner';
 import { MAX_UPLOAD_BYTES } from '@puzzle-log/shared';
-import type { PhotoStorage } from './types.js';
+import { photoKeyPrefix, type PhotoStorage } from './types.js';
 
 const UPLOAD_EXPIRY_SECONDS = 5 * 60;
 const VIEW_EXPIRY_SECONDS = 60 * 60;
@@ -18,8 +18,8 @@ export class S3PhotoStorage implements PhotoStorage {
     private readonly client = new S3Client({}),
   ) {}
 
-  async createUpload(contentType: string) {
-    const key = `uploads/${randomUUID()}`;
+  async createUpload(userId: string, contentType: string) {
+    const key = `${photoKeyPrefix(userId)}${randomUUID()}`;
     const { url, fields } = await createPresignedPost(this.client, {
       Bucket: this.bucket,
       Key: key,

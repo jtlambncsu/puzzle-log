@@ -15,7 +15,7 @@ export function uploadsRouter(photos?: PhotoStorage) {
       res.status(400).json({ error: 'Invalid upload request', issues: result.error.issues });
       return;
     }
-    res.status(201).json(await photos.createUpload(result.data.contentType));
+    res.status(201).json(await photos.createUpload(res.locals.userId, result.data.contentType));
   });
 
   return router;

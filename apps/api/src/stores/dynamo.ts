@@ -5,14 +5,14 @@ import {
   DynamoDBDocumentClient,
   GetCommand,
   PutCommand,
-  ScanCommand,
+  QueryCommand,
 } from '@aws-sdk/lib-dynamodb';
 import type { CreatePuzzleInput, Puzzle } from '@puzzle-log/shared';
 import { newestFirst, newPuzzle, type PuzzleStore } from './types.js';
 
 /**
- * One item per puzzle, keyed by `id`. `list` scans the whole table, which is fine
- * for a personal log. With many users you would add a userId partition key and query.
+ * Table keyed by `userId` (partition) and `id` (sort), so listing a user's puzzles is a
+ * single Query, and one user's requests can never touch another user's items.
  */
 export class DynamoPuzzleStore implements PuzzleStore {
   constructor(
@@ -22,12 +22,17 @@ export class DynamoPuzzleStore implements PuzzleStore {
     }),
   ) {}
 
-  async list() {
+  async list(userId: string) {
     const items: Puzzle[] = [];
     let startKey: Record<string, unknown> | undefined;
     do {
       const page = await this.client.send(
-        new ScanCommand({ TableName: this.tableName, ExclusiveStartKey: startKey }),
+        new QueryCommand({
+          TableName: this.tableName,
+          KeyConditionExpression: 'userId = :userId',
+          ExpressionAttributeValues: { ':userId': userId },
+          ExclusiveStartKey: startKey,
+        }),
       );
       items.push(...((page.Items ?? []) as Puzzle[]));
       startKey = page.LastEvaluatedKey;
@@ -35,15 +40,15 @@ export class DynamoPuzzleStore implements PuzzleStore {
     return items.sort(newestFirst);
   }
 
-  async get(id: string) {
+  async get(userId: string, id: string) {
     const { Item } = await this.client.send(
-      new GetCommand({ TableName: this.tableName, Key: { id } }),
+      new GetCommand({ TableName: this.tableName, Key: { userId, id } }),
     );
     return Item as Puzzle | undefined;
   }
 
-  async create(input: CreatePuzzleInput) {
-    const puzzle = newPuzzle(input, randomUUID());
+  async create(userId: string, input: CreatePuzzleInput) {
+    const puzzle = newPuzzle(userId, input, randomUUID());
     await this.client.send(
       new PutCommand({
         TableName: this.tableName,
@@ -54,9 +59,13 @@ export class DynamoPuzzleStore implements PuzzleStore {
     return puzzle;
   }
 
-  async delete(id: string) {
+  async delete(userId: string, id: string) {
     const { Attributes } = await this.client.send(
-      new DeleteCommand({ TableName: this.tableName, Key: { id }, ReturnValues: 'ALL_OLD' }),
+      new DeleteCommand({
+        TableName: this.tableName,
+        Key: { userId, id },
+        ReturnValues: 'ALL_OLD',
+      }),
     );
     return Attributes !== undefined;
   }

@@ -1,15 +1,16 @@
 import { useEffect, useState } from 'react';
 import type { Puzzle } from '@puzzle-log/shared';
-import { puzzlesApi } from '../api/puzzles';
+import { usePuzzlesApi } from '../api/context';
 
 export function PuzzleList() {
+  const api = usePuzzlesApi();
   const [puzzles, setPuzzles] = useState<Puzzle[]>([]);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
 
   useEffect(() => {
     let cancelled = false;
-    puzzlesApi
+    api
       .list()
       .then((data) => {
         if (!cancelled) setPuzzles(data);
@@ -23,7 +24,7 @@ export function PuzzleList() {
     return () => {
       cancelled = true;
     };
-  }, []);
+  }, [api]);
 
   if (loading) return <p>Loading puzzles…</p>;
   if (error) return <p role="alert">Error: {error}</p>;

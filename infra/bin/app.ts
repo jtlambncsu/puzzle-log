@@ -15,7 +15,13 @@ const allowedOrigins = (app.node.tryGetContext('allowedOrigins') ?? process.env.
   .map((origin: string) => origin.trim())
   .filter(Boolean);
 
-new ApiStack(app, 'PuzzleLogApi', { env, allowedOrigins });
+/** Comma-separated web app URLs that login may redirect back to (your Vercel URL). */
+const webUrls = (app.node.tryGetContext('webUrls') ?? process.env.WEB_URLS)
+  ?.split(',')
+  .map((url: string) => url.trim())
+  .filter(Boolean);
+
+new ApiStack(app, 'PuzzleLogApi', { env, allowedOrigins, webUrls });
 
 /**
  * One-time setup, deployed from your machine: lets GitHub Actions deploy PuzzleLogApi.

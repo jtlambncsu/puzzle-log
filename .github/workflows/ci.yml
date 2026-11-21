@@ -51,3 +51,4 @@ jobs:
       - run: npm run deploy:api
         env:
           ALLOWED_ORIGINS: ${{ vars.ALLOWED_ORIGINS }}
+          WEB_URLS: ${{ vars.WEB_URLS }}

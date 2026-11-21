@@ -6,21 +6,23 @@ import { newestFirst, newPuzzle, type PuzzleStore } from './types.js';
 export class InMemoryPuzzleStore implements PuzzleStore {
   private puzzles = new Map<string, Puzzle>();
 
-  async list() {
-    return [...this.puzzles.values()].sort(newestFirst);
+  async list(userId: string) {
+    return [...this.puzzles.values()].filter((p) => p.userId === userId).sort(newestFirst);
   }
 
-  async get(id: string) {
-    return this.puzzles.get(id);
+  async get(userId: string, id: string) {
+    const puzzle = this.puzzles.get(id);
+    return puzzle?.userId === userId ? puzzle : undefined;
   }
 
-  async create(input: CreatePuzzleInput) {
-    const puzzle = newPuzzle(input, randomUUID());
+  async create(userId: string, input: CreatePuzzleInput) {
+    const puzzle = newPuzzle(userId, input, randomUUID());
     this.puzzles.set(puzzle.id, puzzle);
     return puzzle;
   }
 
-  async delete(id: string) {
+  async delete(userId: string, id: string) {
+    if (!(await this.get(userId, id))) return false;
     return this.puzzles.delete(id);
   }
 }
