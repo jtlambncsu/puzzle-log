@@ -22,6 +22,18 @@ a role that only workflows on `main` of this repo can use.
 
 ## One-time setup
 
+> **No laptop?** Steps 2 and 3 work in **AWS CloudShell**, a terminal in the AWS console
+> that's already signed in and has the AWS CLI, Node and git. Open it in a phone browser
+> (with "Request desktop site" on), set the region to `us-east-1`, and run:
+>
+> ```bash
+> git clone https://github.com/jtlambncsu/puzzle-log
+> cd puzzle-log && npm ci
+> cd infra && npx cdk bootstrap && npx cdk deploy PuzzleLogGithubDeploy
+> ```
+>
+> The GitHub settings (step 4) and Vercel (step 6) work in a mobile browser too.
+
 ### 1. Prerequisites on your machine
 
 - AWS CLI v2, signed in to your account with admin rights. Check with
@@ -59,8 +71,10 @@ If you fork or rename the repo, add `-c githubRepo=<owner>/<repo>`.
 
 ### 4. Tell GitHub about the role
 
-In the repo: **Settings → Secrets and variables → Actions → Variables** (variables, not
-secrets; none of these are secret):
+In the repo: **Settings → Secrets and variables → Actions → Variables → New repository
+variable**. Use repository variables, not secrets (the workflow reads `vars.*`) and not
+environment variables (the deploy job doesn't use a GitHub environment, and the AWS role
+only trusts the `main` branch identity):
 
 | Variable              | Value                                       |
 | --------------------- | ------------------------------------------- |
