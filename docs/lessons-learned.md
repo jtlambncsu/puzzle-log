@@ -34,6 +34,30 @@ every real request would have been blocked.
 **Takeaway:** preflights never carry credentials, so any auth layer in front of a
 cross-origin API must let them through. Test with `curl -X OPTIONS -H 'Origin: …'`.
 
+## A cached image breaks a CORS fetch of the same URL (Safari "Load failed")
+
+**Symptom:** on an iPhone, "Save rotation" failed with a toast saying only "Load failed"
+(Safari's message for a blocked or failed `fetch`). The API and the bucket's CORS rules both
+checked out with `curl`.
+
+**Cause:** the detail page first shows the photo with an `<img>`. Image requests send no
+`Origin` header, so S3 answers without CORS headers, and without `Vary: Origin`, because it
+only adds those when a request has an `Origin`. Safari caches that response. Rotating then
+calls `fetch()` on the _same signed URL_; Safari serves the cached copy, which has no
+`Access-Control-Allow-Origin`, so the browser blocks it.
+
+Reproduced with curl: `GET` with `Origin` → CORS headers and `Vary: Origin`; `GET` without
+`Origin` → neither.
+
+**Fix:** download with `fetch(url, { cache: 'no-store' })` so the request goes to S3 with its
+`Origin` header (`downloadPhoto` in `apps/web/src/api/queries.ts`), plus a clearer error
+message than "Load failed".
+
+**Takeaway:** when the same URL is used by both `<img>` (no CORS) and `fetch`/canvas
+(CORS), caches can mix the two up. Bypass the cache for the CORS request, or load the image
+with `crossorigin="anonymous"` everywhere. "Load failed" in Safari is almost always CORS or
+the network: check the exact request with and without `Origin`.
+
 ## A new HTTP method missing from the CORS allow-list
 
 **Symptom:** found right after merging the photo-rotation PR, before it was used: a preflight

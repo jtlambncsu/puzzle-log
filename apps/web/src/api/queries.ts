@@ -86,6 +86,25 @@ export function useCreatePuzzle() {
 }
 
 /**
+ * Downloads a stored photo so the browser can edit it.
+ *
+ * `cache: 'no-store'` matters: the page already showed this photo with an <img>, which sends
+ * no Origin header, so S3 answered without CORS headers (and without `Vary: Origin`). Safari
+ * then reuses that cached response for this cross-origin fetch and blocks it ("Load failed").
+ * Skipping the cache makes S3 answer this request with the CORS headers it needs.
+ */
+async function downloadPhoto(url: string) {
+  let res: Response;
+  try {
+    res = await fetch(url, { cache: 'no-store' });
+  } catch {
+    throw new Error("Couldn't download the photo. Check your connection and try again.");
+  }
+  if (!res.ok) throw new ApiError(res.status, "Couldn't download the photo");
+  return res;
+}
+
+/**
  * Rotates an already-saved photo: download it, rotate the pixels in the browser, upload the
  * result as a new photo, and point the puzzle at it (the API deletes the old one).
  */
@@ -96,8 +115,7 @@ export function useRotatePuzzlePhoto() {
   return useMutation({
     mutationFn: async ({ puzzle, rotation }: { puzzle: Puzzle; rotation: Rotation }) => {
       if (!puzzle.imageUrl) throw new Error('This puzzle has no photo');
-      const res = await fetch(puzzle.imageUrl); // signed S3 URL; needs the bucket's CORS GET
-      if (!res.ok) throw new ApiError(res.status, 'Could not load the photo');
+      const res = await downloadPhoto(puzzle.imageUrl);
       const imageKey = await uploadPreparedPhoto(api, await res.blob(), rotation);
       return api.update(puzzle.id, { imageKey });
     },
