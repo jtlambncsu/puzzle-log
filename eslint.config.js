@@ -6,7 +6,7 @@ import globals from 'globals';
 import prettier from 'eslint-config-prettier';
 
 export default tseslint.config(
-  { ignores: ['**/dist/**', '**/coverage/**', '**/cdk.out/**'] },
+  { ignores: ['**/dist/**', '**/coverage/**', '**/cdk.out/**', '**/routeTree.gen.ts'] },
   js.configs.recommended,
   ...tseslint.configs.recommended,
   {
@@ -27,8 +27,21 @@ export default tseslint.config(
     plugins: { 'react-hooks': reactHooks, 'react-refresh': reactRefresh },
     rules: {
       ...reactHooks.configs.recommended.rules,
-      'react-refresh/only-export-components': ['warn', { allowConstantExport: true }],
+      // TanStack Router route files export a `Route` built by these factories.
+      'react-refresh/only-export-components': [
+        'warn',
+        {
+          allowConstantExport: true,
+          extraHOCs: ['createFileRoute', 'createRootRouteWithContext'],
+        },
+      ],
     },
+  },
+  {
+    // The entry point isn't a hot-reloadable module, and shadcn/ui's generated components
+    // export style helpers (e.g. buttonVariants) next to components by design.
+    files: ['apps/web/src/main.tsx', 'apps/web/src/components/ui/**'],
+    rules: { 'react-refresh/only-export-components': 'off' },
   },
   prettier,
 );
