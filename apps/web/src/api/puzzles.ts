@@ -1,7 +1,13 @@
 import type { CreatePuzzleInput, Puzzle } from '@puzzle-log/shared';
 
+/**
+ * Empty in development, so requests go to `/api` on the Vite server, which proxies to the
+ * local API. In production (Vercel) this is the API Gateway URL from the CDK output.
+ */
+const API_URL = import.meta.env.VITE_API_URL ?? '';
+
 async function request<T>(path: string, init?: RequestInit): Promise<T> {
-  const res = await fetch(`/api${path}`, {
+  const res = await fetch(`${API_URL}/api${path}`, {
     headers: { 'Content-Type': 'application/json' },
     ...init,
   });

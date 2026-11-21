@@ -1,0 +1,10 @@
+{
+  "app": "npx tsx bin/app.ts",
+  "watch": {
+    "include": ["bin/**", "lib/**", "../apps/api/src/**", "../packages/shared/src/**"]
+  },
+  "context": {
+    "@aws-cdk/core:checkSecretUsage": true,
+    "@aws-cdk/aws-lambda:recognizeLayerVersion": true
+  }
+}
