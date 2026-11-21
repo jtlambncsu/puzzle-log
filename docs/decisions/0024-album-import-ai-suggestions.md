@@ -33,7 +33,7 @@ every title, and at this scale that's the slow part.
 
 **AI suggestions:**
 
-- `POST /api/puzzles/:id/suggest` asks Claude (`claude-opus-5-5`, effort `low`) to name the
+- `POST /api/puzzles/:id/suggest` asks Claude (`claude-sonnet-5-5`, effort `low`) to name the
   puzzle from its photo. It uses vision with the photo as a short-lived S3 URL, and
   structured outputs (`messages.parse` with a Zod schema) for `{ title, brand, tags }`.
 - Your existing tags are in the prompt, so suggestions reuse your spelling.
@@ -68,8 +68,12 @@ every title, and at this scale that's the slow part.
   Libraries for browsers are small and unmaintained or Node-only.
 - **Secrets Manager for the key** — rotation features we don't need, at $0.40 a month.
   Parameter Store SecureString is free and also encrypted with KMS.
-- **A smaller, cheaper model** — model choice is the owner's call. At effort `low` the
-  default model costs about 1 to 2 cents a photo, a few dollars for the whole collection.
+- **Model choice.** This first shipped on Claude Opus 5.5, at about 1.5 cents a photo. The
+  owner switched to Claude Sonnet 5.5 (about 0.7 cents a photo, around $2 for 300). Naming a
+  picture doesn't need the most capable model, and Sonnet recognizes known artwork nearly as
+  well. Claude Haiku 5.5 (about 0.05 cents) was the cheaper option, but more likely to fall
+  back to generic titles. Changing the model is a one-line change in
+  `apps/api/src/suggestions/claude.ts`.
 
 ## Consequences
 

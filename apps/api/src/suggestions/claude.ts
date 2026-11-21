@@ -5,7 +5,11 @@ import { z } from 'zod';
 import { MAX_TAGS, tagSchema, uniqueTags, type PuzzleSuggestion } from '@puzzle-log/shared';
 import { SuggestionUnavailableError, type PuzzleSuggester } from './types.js';
 
-const MODEL = 'claude-opus-5-5';
+/**
+ * Sonnet: naming a puzzle from a photo doesn't need the most capable model, and Sonnet costs
+ * about half as much as Opus (under 1 cent a photo) for nearly the same recognition.
+ */
+const MODEL = 'claude-sonnet-5-5';
 
 const SYSTEM_PROMPT = `You help someone catalog the jigsaw puzzles they have finished. You get a photo of one completed puzzle, usually without its box, and suggest how to file it.
 

@@ -202,7 +202,7 @@ redeploy on Vercel.
 - **CORS** allows any origin by default. Once you have a fixed domain you can set the
   `ALLOWED_ORIGINS` GitHub variable (comma-separated, e.g. `https://puzzles.example.com`),
   but that blocks Vercel preview URLs.
-- **AI suggestions** cost about 1 to 2 cents per reviewed photo, billed by Anthropic (not
+- **AI suggestions** (Claude Sonnet 5.5) cost under 1 cent per reviewed photo, billed by Anthropic (not
   AWS), and only run for imported puzzles. The spend limit in the Anthropic console caps it.
 - **Cost:** for personal use this should fit in the AWS free tier or cost cents a month.
   Set up an **AWS Budget** with an email alert (e.g. $5/month) anyway.
