@@ -1,11 +1,15 @@
-import Anthropic from '@anthropic-ai/sdk';
+import Anthropic, { type ClientOptions } from '@anthropic-ai/sdk';
 import { betaZodOutputFormat } from '@anthropic-ai/sdk/helpers/beta/zod';
 import { GetParameterCommand, SSMClient } from '@aws-sdk/client-ssm';
 import { z } from 'zod';
 import { MAX_TAGS, tagSchema, uniqueTags, type PuzzleSuggestion } from '@puzzle-log/shared';
 import { SuggestionUnavailableError, type PuzzleSuggester } from './types.js';
 
-const MODEL = 'claude-opus-5-5';
+/**
+ * Sonnet: naming a puzzle from a photo doesn't need the most capable model, and Sonnet costs
+ * about half as much as Opus (under 1 cent a photo) for nearly the same recognition.
+ */
+const MODEL = 'claude-sonnet-5-5';
 
 const SYSTEM_PROMPT = `You help someone catalog the jigsaw puzzles they have finished. You get a photo of one completed puzzle, usually without its box, and suggest how to file it.
 
@@ -29,13 +33,19 @@ const suggestionSchema = z.object({
 export class ClaudeSuggester implements PuzzleSuggester {
   private client?: Promise<Anthropic>;
 
-  /** @param getApiKey Loads the key on first use (e.g. from SSM), so a cold start stays fast. */
-  constructor(private readonly getApiKey: () => Promise<string>) {}
+  /**
+   * @param getApiKey Loads the key on first use (e.g. from SSM), so a cold start stays fast.
+   * @param clientOptions Extra SDK options (tests pass a fake `fetch`).
+   */
+  constructor(
+    private readonly getApiKey: () => Promise<string>,
+    private readonly clientOptions: ClientOptions = {},
+  ) {}
 
   private getClient() {
     this.client ??= this.getApiKey().then(
       // API Gateway gives up after 30 seconds, so one 25-second try, no retries.
-      (apiKey) => new Anthropic({ apiKey, timeout: 25_000, maxRetries: 0 }),
+      (apiKey) => new Anthropic({ timeout: 25_000, maxRetries: 0, ...this.clientOptions, apiKey }),
     );
     // Don't cache a failure (e.g. the key wasn't set up yet): try again next time.
     this.client.catch(() => (this.client = undefined));
@@ -71,6 +81,9 @@ export class ClaudeSuggester implements PuzzleSuggester {
         ],
       });
     } catch (error) {
+      // A rejected key may have been replaced since it was loaded: load it again next time,
+      // instead of failing until AWS happens to start a fresh Lambda instance.
+      if (error instanceof Anthropic.AuthenticationError) this.client = undefined;
       throw new SuggestionUnavailableError('The suggestion service is unavailable', {
         cause: error,
       });
@@ -104,7 +117,9 @@ export function apiKeyFromSsm(parameterName: string, ssm = new SSMClient({})) {
     const { Parameter } = await ssm.send(
       new GetParameterCommand({ Name: parameterName, WithDecryption: true }),
     );
-    if (!Parameter?.Value) throw new Error(`Parameter ${parameterName} is empty`);
-    return Parameter.Value;
+    // Trimmed: a key pasted on a phone easily picks up a space or line break.
+    const apiKey = Parameter?.Value?.trim();
+    if (!apiKey) throw new Error(`Parameter ${parameterName} is empty`);
+    return apiKey;
   };
 }

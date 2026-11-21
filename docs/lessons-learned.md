@@ -136,3 +136,22 @@ per cell, and average the cells in code. The test photos also showed a different
 **Takeaway:** when tests can't run the real thing (here, image decoding), check it once in a
 real browser with realistic input, and measure the numbers your thresholds depend on instead
 of guessing them.
+
+## A warm Lambda keeps the secret it loaded
+
+**Symptom:** after the Anthropic key was added to Parameter Store, every suggestion failed.
+The logs showed `401 authentication_error: Invalid bearer token` from Anthropic.
+
+**Cause:** the stored value wasn't a valid key (pasting a long key on a phone easily cuts it
+short or adds a line break). Fixing it in Parameter Store wouldn't have helped right away:
+the Lambda loaded the key once and kept the client while the instance stayed warm, so a
+replaced key wouldn't be read until AWS started a fresh instance. (The "bearer token"
+wording was a red herring: the SDK sends API keys as `Authorization: Bearer`.)
+
+**Fix:** drop the cached client when Anthropic answers 401, so the next request reads the
+key again, and trim whitespace from the stored value.
+
+**Takeaway:** anything cached per Lambda instance (secrets, clients, config) outlives the
+change you make in the console. Decide how it gets refreshed: on a timer, or on the error
+that a stale value causes. Read the logs first (`aws logs filter-log-events`) instead of
+guessing.
