@@ -3,6 +3,24 @@
 Real problems hit while building this, how they were found, and the fix. Each one is a good
 "tell me about a bug you debugged" story.
 
+## Offline cache that never saved anything
+
+**Symptom:** with the network cut in a real browser, reloading the app showed an empty page
+(a loading skeleton forever), even though the puzzle list had just loaded online. Unit tests
+passed. IndexedDB, where the cache should have been saved, was empty.
+
+**Cause:** a race between two startup steps. `PersistQueryClientProvider` restores the saved
+cache asynchronously and only _starts saving changes after the restore finishes_. Meanwhile the
+router's loader had already fetched the puzzle list, during the restore. Online, that fetch
+finished before saving began, so nothing ever changed afterwards and nothing was saved.
+Offline, the loader's request was paused waiting for a connection.
+
+**Fix:** don't render the router until the restore is done (`useIsRestoring()` in `main.tsx`).
+
+**Takeaway:** anything that reads data outside React hooks (route loaders, prefetching) can
+run before hydration-style setup completes. Test offline behaviour in a real browser with the
+network actually off: jsdom has no service worker or IndexedDB timing to expose this.
+
 ## GitHub OIDC subject format changed
 
 **Symptom:** the first deploy failed with

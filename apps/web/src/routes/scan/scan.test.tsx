@@ -1,6 +1,7 @@
 import { screen, waitFor, within } from '@testing-library/react';
 import userEvent from '@testing-library/user-event';
 import { http, HttpResponse } from 'msw';
+import { onlineManager } from '@tanstack/react-query';
 import { describe, expect, it, vi } from 'vitest';
 import { db, server } from '@/test/server';
 import { renderApp } from '@/test/renderApp';
@@ -123,6 +124,33 @@ describe('scanning a box', () => {
     server.use(http.get('/api/barcodes/:code', () => HttpResponse.json({}, { status: 503 })));
     renderApp(`/scan/${CINDERELLA}`);
     expect(await screen.findByText(/couldn't look this barcode up right now/i)).toBeInTheDocument();
+  });
+
+  it("works offline from saved data, and explains it can't look up new boxes", async () => {
+    db.add({ title: 'Cinderella', barcode: CINDERELLA });
+    const { router } = renderApp('/'); // loads (and caches) the list while online
+    await screen.findByText('Cinderella');
+
+    vi.spyOn(navigator, 'onLine', 'get').mockReturnValue(false);
+    onlineManager.setOnline(false); // TanStack Query pauses requests instead of failing them
+    window.dispatchEvent(new Event('offline'));
+    try {
+      expect(await screen.findByText(/You're offline/)).toBeInTheDocument();
+
+      // A box you've saved still matches, from cached data.
+      await router.navigate({ to: '/scan/$barcode', params: { barcode: CINDERELLA } });
+      expect(
+        await screen.findByRole('heading', { name: "You've done this one" }),
+      ).toBeInTheDocument();
+
+      // An unknown box can't be looked up offline, and says so instead of spinning forever.
+      await router.navigate({ to: '/scan/$barcode', params: { barcode: '0079346125678' } });
+      expect(await screen.findByText(/can't be looked up/)).toBeInTheDocument();
+      expect(db.barcodeLookups).toEqual([]);
+    } finally {
+      onlineManager.setOnline(true);
+      vi.restoreAllMocks();
+    }
   });
 
   it('accepts a typed barcode and rejects typos', async () => {

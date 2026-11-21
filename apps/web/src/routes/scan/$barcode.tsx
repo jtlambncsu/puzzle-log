@@ -17,6 +17,7 @@ import { Skeleton } from '@/components/ui/skeleton';
 import { PuzzleCard } from '@/features/puzzles/PuzzleCard';
 import { PickPuzzle } from '@/features/scan/PickPuzzle';
 import { rankBySimilarity } from '@/lib/search';
+import { useOnlineStatus } from '@/lib/useOnlineStatus';
 
 export const Route = createFileRoute('/scan/$barcode')({
   // Accept any way of writing the code (UPC-A, EAN-13, spaces) and use the normalized form.
@@ -40,7 +41,11 @@ function ScanResultPage() {
   const api = useApi();
   const { data: puzzles } = useSuspenseQuery(puzzlesQueryOptions(api));
   const exactMatches = puzzles.filter((puzzle) => puzzle.barcode === barcode);
-  const lookup = useQuery({ ...barcodeQueryOptions(api, barcode), enabled: !exactMatches.length });
+  const online = useOnlineStatus();
+  const lookup = useQuery({
+    ...barcodeQueryOptions(api, barcode),
+    enabled: !exactMatches.length && online,
+  });
   const updatePuzzle = useUpdatePuzzle();
 
   const scanAgain = (
@@ -79,7 +84,15 @@ function ScanResultPage() {
         No saved puzzle has barcode {barcode}.
       </Verdict>
 
-      {lookup.isPending ? (
+      {!lookup.data && (!online || lookup.fetchStatus === 'paused') ? (
+        // Offline: say so instead of spinning. (TanStack Query pauses requests once it sees an
+        // "offline" event, but after a fresh page load offline it hasn't seen one.)
+        <p className="flex items-start gap-2 text-sm text-muted-foreground">
+          <PackageSearchIcon className="mt-0.5 size-4 shrink-0" aria-hidden />
+          You're offline, so this box can't be looked up. Search your puzzles below to check by
+          name.
+        </p>
+      ) : lookup.isPending ? (
         <Skeleton className="h-24 w-full rounded-xl" aria-label="Looking up this barcode" />
       ) : product ? (
         <ProductCard product={product} />
