@@ -109,6 +109,17 @@ second device can't record a session twice. The page only redraws the clock each
 the timer keeps counting with the app closed. Marking a puzzle done stops its timer. See
 [ADR 0023](decisions/0023-puzzle-timer.md).
 
+### Importing an album
+
+`/puzzles/import` takes hundreds of photos at once. In the browser, each photo gets a SHA-256
+hash (exact copies) and a 64-bit difference hash of how it looks (re-shoots of the same
+puzzle). Similar photos taken minutes apart are grouped, with a chance to split a wrong
+group. One photo per group is uploaded, as a done puzzle marked `needsReview`, with the
+group's hashes saved so a re-import skips them. `/review` then goes through them one by one:
+`POST /api/puzzles/:id/suggest` has Claude (vision + structured outputs) suggest a title,
+brand and tags, asked for a few puzzles ahead. The Anthropic key is read from SSM Parameter
+Store. See [ADR 0024](decisions/0024-album-import-ai-suggestions.md).
+
 ## Local development
 
 `npm run dev` runs the API on :3001 (in-memory storage, no login, uploads off) and the web

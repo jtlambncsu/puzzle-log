@@ -81,6 +81,9 @@ export function createPuzzlesApi(getAccessToken: GetAccessToken) {
       }),
     stopTimer: (id: string) =>
       request<Puzzle>(`/puzzles/${encodeURIComponent(id)}/timer/stop`, { method: 'POST' }),
+    /** Asks the API to name an imported puzzle from its photo (AI). */
+    suggest: (id: string) =>
+      request<Puzzle>(`/puzzles/${encodeURIComponent(id)}/suggest`, { method: 'POST' }),
     remove: (id: string) =>
       request<void>(`/puzzles/${encodeURIComponent(id)}`, { method: 'DELETE' }),
     lookupBarcode: (barcode: string) =>

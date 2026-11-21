@@ -12,10 +12,14 @@ import { HttpLambdaIntegration } from 'aws-cdk-lib/aws-apigatewayv2-integrations
 import { AttributeType, Billing, TableV2 } from 'aws-cdk-lib/aws-dynamodb';
 import { Architecture, Runtime } from 'aws-cdk-lib/aws-lambda';
 import { NodejsFunction } from 'aws-cdk-lib/aws-lambda-nodejs';
+import { StringParameter } from 'aws-cdk-lib/aws-ssm';
 import { LogGroup, RetentionDays } from 'aws-cdk-lib/aws-logs';
 import { BlockPublicAccess, Bucket, BucketEncryption, HttpMethods } from 'aws-cdk-lib/aws-s3';
 import type { Construct } from 'constructs';
 import { Auth } from './auth.js';
+
+/** Where the Anthropic API key lives in SSM Parameter Store (a SecureString). */
+export const ANTHROPIC_KEY_PARAMETER = '/puzzle-log/anthropic-api-key';
 
 const repoPath = (relative: string) => fileURLToPath(new URL(`../../${relative}`, import.meta.url));
 
@@ -75,6 +79,13 @@ export class ApiStack extends Stack {
       ],
     });
 
+    // The Anthropic API key for photo suggestions. It's created by hand once (see
+    // docs/DEPLOYMENT.md), so the secret never passes through code, CI or CloudFormation.
+    // Until it exists, suggestions answer 503 and everything else works.
+    const anthropicKey = StringParameter.fromSecureStringParameterAttributes(this, 'AnthropicKey', {
+      parameterName: ANTHROPIC_KEY_PARAMETER,
+    });
+
     const fn = new NodejsFunction(this, 'ApiFunction', {
       entry: repoPath('apps/api/src/lambda.ts'),
       projectRoot: repoPath(''),
@@ -82,11 +93,13 @@ export class ApiStack extends Stack {
       runtime: Runtime.NODEJS_24_X,
       architecture: Architecture.ARM_64,
       memorySize: 512,
-      timeout: Duration.seconds(10),
+      // Naming a photo with Claude takes several seconds. API Gateway waits at most 30.
+      timeout: Duration.seconds(29),
       environment: {
         PUZZLES_TABLE: table.tableName,
         PHOTOS_BUCKET: photos.bucketName,
         BARCODE_TABLE: barcodeLookups.tableName,
+        ANTHROPIC_KEY_PARAMETER: anthropicKey.parameterName,
         ...(props.allowedOrigins?.length && { ALLOWED_ORIGINS: props.allowedOrigins.join(',') }),
         NODE_OPTIONS: '--enable-source-maps',
       },
@@ -108,6 +121,7 @@ export class ApiStack extends Stack {
     photos.grantPut(fn); // signing a presigned POST requires the signer to be allowed to PUT
     photos.grantRead(fn);
     photos.grantDelete(fn); // remove replaced and deleted puzzles' photos
+    anthropicKey.grantRead(fn);
 
     const integration = new HttpLambdaIntegration('ApiIntegration', fn);
 

@@ -132,6 +132,31 @@ describe('ApiStack', () => {
     });
   });
 
+  it('lets the Lambda read the Anthropic key, and wait long enough for Claude', () => {
+    template.hasResourceProperties('AWS::Lambda::Function', {
+      Timeout: 29,
+      Environment: {
+        Variables: Match.objectLike({ ANTHROPIC_KEY_PARAMETER: '/puzzle-log/anthropic-api-key' }),
+      },
+    });
+    template.hasResourceProperties('AWS::IAM::Policy', {
+      PolicyDocument: {
+        Statement: Match.arrayWith([
+          Match.objectLike({
+            Action: Match.arrayWith(['ssm:GetParameter']),
+            Resource: Match.objectLike({
+              'Fn::Join': Match.arrayWith([
+                Match.arrayWith([
+                  Match.stringLikeRegexp(':parameter/puzzle-log/anthropic-api-key'),
+                ]),
+              ]),
+            }),
+          }),
+        ]),
+      },
+    });
+  });
+
   it('throttles the API', () => {
     template.hasResourceProperties('AWS::ApiGatewayV2::Stage', {
       DefaultRouteSettings: Match.objectLike({ ThrottlingRateLimit: 10 }),

@@ -1,0 +1,272 @@
+import { useState } from 'react';
+import { createFileRoute, Link } from '@tanstack/react-router';
+import { useQueryClient, useSuspenseQuery } from '@tanstack/react-query';
+import { ImagePlusIcon, ScanSearchIcon, SplitIcon, UploadIcon } from 'lucide-react';
+import { IMPORTED_TITLE } from '@puzzle-log/shared';
+import { puzzleKeys, puzzlesQueryOptions, savePuzzle, useApi } from '@/api/queries';
+import { Button } from '@/components/ui/button';
+import { Progress } from '@/components/ui/progress';
+import { PhotoPreview } from '@/features/puzzles/PhotoPreview';
+import { mapWithConcurrency } from '@/lib/mapWithConcurrency';
+import {
+  analyzePhoto,
+  groupPhotos,
+  makeGroup,
+  type AnalyzedPhoto,
+  type GroupingResult,
+  type PhotoGroup,
+} from '@/lib/photoImport';
+
+export const Route = createFileRoute('/puzzles/import')({
+  // The saved puzzles' import hashes tell us which photos were imported before.
+  loader: ({ context: { queryClient, api } }) =>
+    queryClient.ensureQueryData(puzzlesQueryOptions(api)),
+  component: ImportPage,
+});
+
+type Stage =
+  | { name: 'pick' }
+  | { name: 'analyzing'; done: number; total: number }
+  | { name: 'ready'; picked: number; result: GroupingResult }
+  | { name: 'importing'; done: number; failed: number; total: number }
+  | { name: 'finished'; imported: number; failed: number };
+
+/**
+ * Import a whole album of old photos: find duplicates in the browser, then upload one photo
+ * per puzzle. Each puzzle is saved as done, dated from its photo, and marked for review,
+ * where AI suggests its title and tags (see `/review`).
+ */
+function ImportPage() {
+  const api = useApi();
+  const queryClient = useQueryClient();
+  const { data: puzzles } = useSuspenseQuery(puzzlesQueryOptions(api));
+  const [stage, setStage] = useState<Stage>({ name: 'pick' });
+
+  async function analyze(files: File[]) {
+    if (!files.length) return;
+    setStage({ name: 'analyzing', done: 0, total: files.length });
+    const analyzed: AnalyzedPhoto[] = [];
+    // Two at a time: decoding full-size photos is memory-hungry on a phone.
+    await mapWithConcurrency(files, 2, async (file) => {
+      analyzed.push(await analyzePhoto(file));
+      setStage((s) => (s.name === 'analyzing' ? { ...s, done: s.done + 1 } : s));
+    });
+    const imported = new Set(puzzles.flatMap((puzzle) => puzzle.importHashes ?? []));
+    setStage({ name: 'ready', picked: files.length, result: groupPhotos(analyzed, imported) });
+  }
+
+  async function importGroups(groups: PhotoGroup[]) {
+    setStage({ name: 'importing', done: 0, failed: 0, total: groups.length });
+    let imported = 0;
+    let failed = 0;
+    await mapWithConcurrency(groups, 3, async (group) => {
+      try {
+        await savePuzzle(api, {
+          input: {
+            title: IMPORTED_TITLE,
+            status: 'done',
+            completedAt: group.date,
+            needsReview: true,
+            // Every photo in the group, so none of them is imported again next time.
+            importHashes: group.photos.map((photo) => photo.hash).slice(0, 50),
+          },
+          photo: group.best.file,
+        });
+        imported++;
+      } catch {
+        failed++;
+      }
+      setStage((s) => (s.name === 'importing' ? { ...s, done: imported, failed } : s));
+    });
+    await queryClient.invalidateQueries({ queryKey: puzzleKeys.list() });
+    setStage({ name: 'finished', imported, failed });
+  }
+
+  return (
+    <div className="space-y-4">
+      <h1 className="font-heading text-xl font-semibold">Import photos</h1>
+
+      {stage.name === 'pick' && (
+        <>
+          <p className="text-sm text-muted-foreground">
+            Pick all your finished-puzzle photos at once (in the photo picker, open your album and
+            tap Select All, or drag across the photos). Duplicates are found on this phone before
+            anything is uploaded, and photos you've imported before are skipped.
+          </p>
+          <label className="flex cursor-pointer flex-col items-center justify-center gap-2 rounded-xl border-2 border-dashed p-8 text-muted-foreground transition-colors hover:bg-muted/50">
+            <ImagePlusIcon className="size-8" aria-hidden />
+            <span>Choose photos</span>
+            <input
+              type="file"
+              accept="image/*"
+              multiple
+              className="sr-only"
+              onChange={(event) => void analyze([...(event.target.files ?? [])])}
+            />
+          </label>
+        </>
+      )}
+
+      {stage.name === 'analyzing' && (
+        <ProgressBlock
+          icon={<ScanSearchIcon aria-hidden />}
+          label={`Looking for duplicates: ${stage.done} of ${stage.total} photos`}
+          value={stage.done / stage.total}
+        />
+      )}
+
+      {stage.name === 'ready' && (
+        <ReadyToImport
+          picked={stage.picked}
+          result={stage.result}
+          onChange={(result) => setStage({ ...stage, result })}
+          onImport={() => void importGroups(stage.result.groups)}
+          onCancel={() => setStage({ name: 'pick' })}
+        />
+      )}
+
+      {stage.name === 'importing' && (
+        <ProgressBlock
+          icon={<UploadIcon aria-hidden />}
+          label={`Uploading: ${stage.done} of ${stage.total} puzzles${
+            stage.failed ? `, ${stage.failed} failed` : ''
+          }. Keep this page open.`}
+          value={(stage.done + stage.failed) / stage.total}
+        />
+      )}
+
+      {stage.name === 'finished' && (
+        <div className="space-y-3">
+          <p>
+            Imported {stage.imported} {stage.imported === 1 ? 'puzzle' : 'puzzles'}.
+            {stage.failed > 0 &&
+              ` ${stage.failed} didn't upload; pick the same photos again to retry them (the rest are skipped).`}
+          </p>
+          <p className="text-sm text-muted-foreground">
+            Next, go through them one by one: AI suggests a title and tags for each, and you fix
+            anything it got wrong.
+          </p>
+          <div className="flex flex-wrap gap-2">
+            <Button asChild>
+              <Link to="/review">Start reviewing</Link>
+            </Button>
+            <Button variant="outline" onClick={() => setStage({ name: 'pick' })}>
+              Import more
+            </Button>
+          </div>
+        </div>
+      )}
+    </div>
+  );
+}
+
+function ProgressBlock({
+  icon,
+  label,
+  value,
+}: {
+  icon: React.ReactNode;
+  label: string;
+  value: number;
+}) {
+  return (
+    <div className="space-y-2">
+      <p className="flex items-center gap-2 text-sm" aria-live="polite">
+        {icon}
+        {label}
+      </p>
+      <Progress value={Math.round(value * 100)} aria-label="Progress" />
+    </div>
+  );
+}
+
+/**
+ * The summary before uploading, plus every group of photos taken to be the same puzzle, so
+ * a wrong guess can be split before it's imported.
+ */
+function ReadyToImport({
+  picked,
+  result,
+  onChange,
+  onImport,
+  onCancel,
+}: {
+  picked: number;
+  result: GroupingResult;
+  onChange: (result: GroupingResult) => void;
+  onImport: () => void;
+  onCancel: () => void;
+}) {
+  const { groups, exactCopies, alreadyImported } = result;
+  const merged = groups.filter((group) => group.photos.length > 1);
+  const reshoots = merged.reduce((sum, group) => sum + group.photos.length - 1, 0);
+
+  function split(group: PhotoGroup) {
+    const singles = group.photos.map((photo) => makeGroup([photo]));
+    onChange({ ...result, groups: groups.flatMap((g) => (g === group ? singles : [g])) });
+  }
+
+  return (
+    <div className="space-y-4">
+      <div>
+        <p className="font-medium">
+          {picked} photos → {groups.length} {groups.length === 1 ? 'puzzle' : 'puzzles'}
+        </p>
+        <ul className="list-disc pl-5 text-sm text-muted-foreground">
+          {reshoots > 0 && <li>{reshoots} extra shots of the same puzzle</li>}
+          {exactCopies > 0 && <li>{exactCopies} exact copies</li>}
+          {alreadyImported > 0 && <li>{alreadyImported} imported before</li>}
+        </ul>
+      </div>
+
+      {merged.length > 0 && (
+        <section className="space-y-2" aria-labelledby="merged-heading">
+          <h2 id="merged-heading" className="font-medium">
+            Same puzzle? ({merged.length})
+          </h2>
+          <p className="text-sm text-muted-foreground">
+            Each row becomes one puzzle, using the outlined photo. If a row mixes different puzzles,
+            split it.
+          </p>
+          <ul className="space-y-2">
+            {merged.map((group) => (
+              <li key={group.best.hash} className="flex items-center gap-2 rounded-lg border p-2">
+                <div className="flex flex-1 gap-1.5 overflow-x-auto">
+                  {group.photos.map((photo) => (
+                    <PhotoPreview
+                      key={photo.hash}
+                      file={photo.file}
+                      alt=""
+                      className={`aspect-square size-16 shrink-0 rounded-md ${
+                        photo === group.best ? 'ring-2 ring-primary' : ''
+                      }`}
+                    />
+                  ))}
+                </div>
+                <Button
+                  variant="ghost"
+                  size="sm"
+                  onClick={() => split(group)}
+                  aria-label={`Split these ${group.photos.length} photos into separate puzzles`}
+                >
+                  <SplitIcon aria-hidden />
+                  Split
+                </Button>
+              </li>
+            ))}
+          </ul>
+        </section>
+      )}
+
+      <div className="flex flex-wrap gap-2">
+        <Button onClick={onImport} disabled={groups.length === 0}>
+          <UploadIcon aria-hidden />
+          Import {groups.length} {groups.length === 1 ? 'puzzle' : 'puzzles'}
+        </Button>
+        <Button variant="ghost" onClick={onCancel}>
+          Start over
+        </Button>
+      </div>
+    </div>
+  );
+}

@@ -28,3 +28,4 @@ New decision? Copy [`0000-template.md`](0000-template.md) to the next number.
 | [0021](0021-puzzle-status.md)                 | Puzzle status: done, owned, wishlist                                    |
 | [0022](0022-stats-page.md)                    | Stats page: stat tiles, Recharts column chart, ranked bars              |
 | [0023](0023-puzzle-timer.md)                  | Puzzle timer: server clock, sessions, conditional writes                |
+| [0024](0024-album-import-ai-suggestions.md)   | Album import: duplicate detection in the browser, AI titles on review   |

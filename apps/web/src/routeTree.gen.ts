@@ -10,9 +10,11 @@
 
 import { Route as rootRouteImport } from './routes/__root'
 import { Route as IndexRouteImport } from './routes/index'
+import { Route as ReviewRouteImport } from './routes/review'
 import { Route as StatsRouteImport } from './routes/stats'
 import { Route as PuzzlesPuzzleIdRouteImport } from './routes/puzzles/$puzzleId'
 import { Route as PuzzlesBulkRouteImport } from './routes/puzzles/bulk'
+import { Route as PuzzlesImportRouteImport } from './routes/puzzles/import'
 import { Route as PuzzlesNewRouteImport } from './routes/puzzles/new'
 import { Route as ScanIndexRouteImport } from './routes/scan/index'
 import { Route as ScanBarcodeRouteImport } from './routes/scan/$barcode'
@@ -21,6 +23,11 @@ import { Route as PuzzlesPuzzleIdEditRouteImport } from './routes/puzzles/$puzzl
 const IndexRoute = IndexRouteImport.update({
   id: '/',
   path: '/',
+  getParentRoute: () => rootRouteImport,
+} as any)
+const ReviewRoute = ReviewRouteImport.update({
+  id: '/review',
+  path: '/review',
   getParentRoute: () => rootRouteImport,
 } as any)
 const StatsRoute = StatsRouteImport.update({
@@ -36,6 +43,11 @@ const PuzzlesPuzzleIdRoute = PuzzlesPuzzleIdRouteImport.update({
 const PuzzlesBulkRoute = PuzzlesBulkRouteImport.update({
   id: '/puzzles/bulk',
   path: '/puzzles/bulk',
+  getParentRoute: () => rootRouteImport,
+} as any)
+const PuzzlesImportRoute = PuzzlesImportRouteImport.update({
+  id: '/puzzles/import',
+  path: '/puzzles/import',
   getParentRoute: () => rootRouteImport,
 } as any)
 const PuzzlesNewRoute = PuzzlesNewRouteImport.update({
@@ -61,9 +73,11 @@ const PuzzlesPuzzleIdEditRoute = PuzzlesPuzzleIdEditRouteImport.update({
 
 export interface FileRoutesByFullPath {
   '/': typeof IndexRoute
+  '/review': typeof ReviewRoute
   '/stats': typeof StatsRoute
   '/puzzles/$puzzleId': typeof PuzzlesPuzzleIdRoute
   '/puzzles/bulk': typeof PuzzlesBulkRoute
+  '/puzzles/import': typeof PuzzlesImportRoute
   '/puzzles/new': typeof PuzzlesNewRoute
   '/scan/$barcode': typeof ScanBarcodeRoute
   '/scan/': typeof ScanIndexRoute
@@ -71,9 +85,11 @@ export interface FileRoutesByFullPath {
 }
 export interface FileRoutesByTo {
   '/': typeof IndexRoute
+  '/review': typeof ReviewRoute
   '/stats': typeof StatsRoute
   '/puzzles/$puzzleId': typeof PuzzlesPuzzleIdRoute
   '/puzzles/bulk': typeof PuzzlesBulkRoute
+  '/puzzles/import': typeof PuzzlesImportRoute
   '/puzzles/new': typeof PuzzlesNewRoute
   '/scan/$barcode': typeof ScanBarcodeRoute
   '/scan': typeof ScanIndexRoute
@@ -82,9 +98,11 @@ export interface FileRoutesByTo {
 export interface FileRoutesById {
   __root__: typeof rootRouteImport
   '/': typeof IndexRoute
+  '/review': typeof ReviewRoute
   '/stats': typeof StatsRoute
   '/puzzles/$puzzleId': typeof PuzzlesPuzzleIdRoute
   '/puzzles/bulk': typeof PuzzlesBulkRoute
+  '/puzzles/import': typeof PuzzlesImportRoute
   '/puzzles/new': typeof PuzzlesNewRoute
   '/scan/$barcode': typeof ScanBarcodeRoute
   '/scan/': typeof ScanIndexRoute
@@ -94,9 +112,11 @@ export interface FileRouteTypes {
   fileRoutesByFullPath: FileRoutesByFullPath
   fullPaths:
     | '/'
+    | '/review'
     | '/stats'
     | '/puzzles/$puzzleId'
     | '/puzzles/bulk'
+    | '/puzzles/import'
     | '/puzzles/new'
     | '/scan/$barcode'
     | '/scan/'
@@ -104,9 +124,11 @@ export interface FileRouteTypes {
   fileRoutesByTo: FileRoutesByTo
   to:
     | '/'
+    | '/review'
     | '/stats'
     | '/puzzles/$puzzleId'
     | '/puzzles/bulk'
+    | '/puzzles/import'
     | '/puzzles/new'
     | '/scan/$barcode'
     | '/scan'
@@ -114,9 +136,11 @@ export interface FileRouteTypes {
   id:
     | '__root__'
     | '/'
+    | '/review'
     | '/stats'
     | '/puzzles/$puzzleId'
     | '/puzzles/bulk'
+    | '/puzzles/import'
     | '/puzzles/new'
     | '/scan/$barcode'
     | '/scan/'
@@ -125,9 +149,11 @@ export interface FileRouteTypes {
 }
 export interface RootRouteChildren {
   IndexRoute: typeof IndexRoute
+  ReviewRoute: typeof ReviewRoute
   StatsRoute: typeof StatsRoute
   PuzzlesPuzzleIdRoute: typeof PuzzlesPuzzleIdRoute
   PuzzlesBulkRoute: typeof PuzzlesBulkRoute
+  PuzzlesImportRoute: typeof PuzzlesImportRoute
   PuzzlesNewRoute: typeof PuzzlesNewRoute
   ScanBarcodeRoute: typeof ScanBarcodeRoute
   ScanIndexRoute: typeof ScanIndexRoute
@@ -141,6 +167,13 @@ declare module '@tanstack/react-router' {
       path: '/'
       fullPath: '/'
       preLoaderRoute: typeof IndexRouteImport
+      parentRoute: typeof rootRouteImport
+    }
+    '/review': {
+      id: '/review'
+      path: '/review'
+      fullPath: '/review'
+      preLoaderRoute: typeof ReviewRouteImport
       parentRoute: typeof rootRouteImport
     }
     '/stats': {
@@ -162,6 +195,13 @@ declare module '@tanstack/react-router' {
       path: '/puzzles/bulk'
       fullPath: '/puzzles/bulk'
       preLoaderRoute: typeof PuzzlesBulkRouteImport
+      parentRoute: typeof rootRouteImport
+    }
+    '/puzzles/import': {
+      id: '/puzzles/import'
+      path: '/puzzles/import'
+      fullPath: '/puzzles/import'
+      preLoaderRoute: typeof PuzzlesImportRouteImport
       parentRoute: typeof rootRouteImport
     }
     '/puzzles/new': {
@@ -197,9 +237,11 @@ declare module '@tanstack/react-router' {
 
 const rootRouteChildren: RootRouteChildren = {
   IndexRoute: IndexRoute,
+  ReviewRoute: ReviewRoute,
   StatsRoute: StatsRoute,
   PuzzlesPuzzleIdRoute: PuzzlesPuzzleIdRoute,
   PuzzlesBulkRoute: PuzzlesBulkRoute,
+  PuzzlesImportRoute: PuzzlesImportRoute,
   PuzzlesNewRoute: PuzzlesNewRoute,
   ScanBarcodeRoute: ScanBarcodeRoute,
   ScanIndexRoute: ScanIndexRoute,

@@ -3,6 +3,7 @@ import request from 'supertest';
 import { createApp, type AppDeps } from './app.js';
 import type { ResolveUser } from './auth.js';
 import type { PhotoStorage } from './photos/types.js';
+import { SuggestionUnavailableError, type PuzzleSuggester } from './suggestions/types.js';
 
 /** Tests pick the caller with a header; no header means not signed in. */
 const userFromTestHeader: ResolveUser = (req) => req.header('x-test-user');
@@ -401,5 +402,97 @@ describe('puzzle timer', () => {
 
     expect(ok.body.sessions).toEqual(sessions);
     expect(backwards.status).toBe(400);
+  });
+});
+
+describe('AI suggestions for imported puzzles', () => {
+  function suggestApp(suggest: PuzzleSuggester['suggest']) {
+    const suggester = { suggest: vi.fn(suggest) };
+    return { app: testApp({ photos: fakePhotos(), suggester }), suggester };
+  }
+
+  async function importPuzzle(app: ReturnType<typeof testApp>, extra = {}) {
+    const res = await request(app)
+      .post('/api/puzzles')
+      .set(alice)
+      .send({
+        title: 'Imported puzzle',
+        needsReview: true,
+        imageKey: 'uploads/alice/abc',
+        ...extra,
+      });
+    return res.body.id as string;
+  }
+
+  it("names an imported puzzle from its photo, reusing the user's tags", async () => {
+    const { app, suggester } = suggestApp(async () => ({
+      title: 'Hogwarts at Night',
+      brand: 'Ravensburger',
+      tags: ['Harry Potter', 'Castles'],
+    }));
+    await request(app)
+      .post('/api/puzzles')
+      .set(alice)
+      .send({ title: 'Old', tags: ['Harry Potter'] });
+    const id = await importPuzzle(app, { tags: ['Imported'] });
+
+    const res = await request(app).post(`/api/puzzles/${id}/suggest`).set(alice);
+
+    expect(res.status).toBe(200);
+    expect(res.body).toMatchObject({
+      title: 'Hogwarts at Night',
+      brand: 'Ravensburger',
+      tags: ['Imported', 'Harry Potter', 'Castles'],
+      needsReview: true,
+    });
+    expect(suggester.suggest).toHaveBeenCalledWith(
+      'https://bucket.example/uploads/alice/abc?signed',
+      ['Harry Potter'],
+    );
+  });
+
+  it('never overwrites a reviewed puzzle', async () => {
+    const { app, suggester } = suggestApp(async () => ({ title: 'x', tags: [] }));
+    const res = await request(app)
+      .post('/api/puzzles')
+      .set(alice)
+      .send({ title: 'Mine', imageKey: 'uploads/alice/abc' });
+
+    expect((await request(app).post(`/api/puzzles/${res.body.id}/suggest`).set(alice)).status).toBe(
+      409,
+    );
+    expect(suggester.suggest).not.toHaveBeenCalled();
+  });
+
+  it("reports when suggestions are unavailable, off, or for someone else's puzzle", async () => {
+    const { app } = suggestApp(async () => {
+      throw new SuggestionUnavailableError('down');
+    });
+    const id = await importPuzzle(app);
+
+    expect((await request(app).post(`/api/puzzles/${id}/suggest`).set(alice)).status).toBe(503);
+    expect((await request(app).post(`/api/puzzles/${id}/suggest`).set(bob)).status).toBe(404);
+    expect((await request(testApp()).post(`/api/puzzles/${id}/suggest`).set(alice)).status).toBe(
+      501,
+    );
+  });
+
+  it('saves import hashes and clears the review flag with null', async () => {
+    const app = testApp({ photos: fakePhotos() });
+    const hash = 'a'.repeat(64);
+    const id = await importPuzzle(app, { importHashes: [hash] });
+
+    const res = await request(app)
+      .patch(`/api/puzzles/${id}`)
+      .set(alice)
+      .send({ needsReview: null });
+
+    expect(res.body.importHashes).toEqual([hash]);
+    expect(res.body.needsReview).toBeUndefined();
+    const bad = await request(app)
+      .post('/api/puzzles')
+      .set(alice)
+      .send({ title: 'x', importHashes: ['nope'] });
+    expect(bad.status).toBe(400);
   });
 });

@@ -1,15 +1,23 @@
 import { Router } from 'express';
 import {
   createPuzzleSchema,
+  MAX_TAGS,
   startTimerSchema,
+  uniqueTags,
   updatePuzzleSchema,
   type Puzzle,
 } from '@puzzle-log/shared';
 import { ConflictError, type PuzzlePatch, type PuzzleStore } from '../stores/types.js';
 import { photoKeyPrefix, type PhotoStorage } from '../photos/types.js';
+import { SuggestionUnavailableError, type PuzzleSuggester } from '../suggestions/types.js';
 import { isTimerRunning, startTimerPatch, stopTimerPatch } from '../timer.js';
 
-export function puzzlesRouter(store: PuzzleStore, photos?: PhotoStorage, clock = () => new Date()) {
+export function puzzlesRouter(
+  store: PuzzleStore,
+  photos?: PhotoStorage,
+  clock = () => new Date(),
+  suggester?: PuzzleSuggester,
+) {
   const router = Router();
 
   /**
@@ -158,6 +166,51 @@ export function puzzlesRouter(store: PuzzleStore, photos?: PhotoStorage, clock =
       (isTimerRunning(puzzle)
         ? await changeTimer(userId, puzzle, stopTimerPatch(puzzle, clock()))
         : puzzle);
+    if (!updated) {
+      res.status(404).json({ error: 'Puzzle not found' });
+      return;
+    }
+    res.json(await withImageUrl(updated));
+  });
+
+  /**
+   * Names an imported puzzle from its photo: title, brand and tags, added to the puzzle for
+   * the user to check on the review screen. Only for puzzles still waiting for review, so
+   * it can never overwrite what the user wrote.
+   */
+  router.post('/:id/suggest', async (req, res) => {
+    const { userId } = res.locals;
+    if (!suggester || !photos) {
+      res.status(501).json({ error: "Suggestions aren't set up on this server" });
+      return;
+    }
+    const puzzles = await store.list(userId);
+    const puzzle = puzzles.find((p) => p.id === req.params.id);
+    if (!puzzle) {
+      res.status(404).json({ error: 'Puzzle not found' });
+      return;
+    }
+    if (!puzzle.needsReview || !puzzle.imageKey) {
+      res.status(409).json({ error: 'Only imported puzzles waiting for review get suggestions' });
+      return;
+    }
+
+    let suggestion;
+    try {
+      const knownTags = uniqueTags(puzzles.flatMap((p) => (p.needsReview ? [] : (p.tags ?? []))));
+      suggestion = await suggester.suggest(await photos.getViewUrl(puzzle.imageKey), knownTags);
+    } catch (error) {
+      if (!(error instanceof SuggestionUnavailableError)) throw error;
+      console.error('Suggestion failed', error);
+      res.status(503).json({ error: 'Suggestions are unavailable right now' });
+      return;
+    }
+
+    const updated = await store.update(userId, puzzle.id, {
+      title: suggestion.title,
+      ...(suggestion.brand && { brand: suggestion.brand }),
+      tags: uniqueTags([...(puzzle.tags ?? []), ...suggestion.tags]).slice(0, MAX_TAGS),
+    });
     if (!updated) {
       res.status(404).json({ error: 'Puzzle not found' });
       return;
