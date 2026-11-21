@@ -1,4 +1,9 @@
-import type { CreatePuzzleInput, Puzzle, UploadTarget } from '@puzzle-log/shared';
+import type {
+  CreatePuzzleInput,
+  Puzzle,
+  UpdatePuzzleInput,
+  UploadTarget,
+} from '@puzzle-log/shared';
 
 /**
  * Empty in development, so requests go to `/api` on the Vite server, which proxies to the
@@ -57,6 +62,11 @@ export function createPuzzlesApi(getAccessToken: GetAccessToken) {
     get: (id: string) => request<Puzzle>(`/puzzles/${encodeURIComponent(id)}`),
     create: (input: CreatePuzzleInput) =>
       request<Puzzle>('/puzzles', { method: 'POST', body: JSON.stringify(input) }),
+    update: (id: string, patch: UpdatePuzzleInput) =>
+      request<Puzzle>(`/puzzles/${encodeURIComponent(id)}`, {
+        method: 'PATCH',
+        body: JSON.stringify(patch),
+      }),
     remove: (id: string) =>
       request<void>(`/puzzles/${encodeURIComponent(id)}`, { method: 'DELETE' }),
     createUpload: (contentType: string) =>

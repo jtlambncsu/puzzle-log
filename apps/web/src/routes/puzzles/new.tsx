@@ -25,9 +25,9 @@ function NewPuzzlePage() {
         </Button>
       </div>
       <PuzzleForm
-        onSubmit={async (input, photo) => {
+        onSubmit={async (input, photo, rotation) => {
           try {
-            const puzzle = await createPuzzle.mutateAsync({ input, photo });
+            const puzzle = await createPuzzle.mutateAsync({ input, photo, rotation });
             toast.success(`Saved “${puzzle.title}”`);
             await navigate({ to: '/' });
           } catch (error) {

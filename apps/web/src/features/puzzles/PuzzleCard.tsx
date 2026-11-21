@@ -29,7 +29,16 @@ export function PuzzleCard({ puzzle }: { puzzle: Puzzle }) {
   );
 }
 
-export function PuzzlePhoto({ puzzle, className }: { puzzle: Puzzle; className?: string }) {
+export function PuzzlePhoto({
+  puzzle,
+  className,
+  rotation = 0,
+}: {
+  puzzle: Puzzle;
+  className?: string;
+  /** Preview-only rotation (CSS), e.g. while choosing how to rotate a saved photo. */
+  rotation?: number;
+}) {
   if (!puzzle.imageUrl) {
     return (
       <div className={`flex items-center justify-center bg-muted ${className ?? ''}`}>
@@ -43,6 +52,7 @@ export function PuzzlePhoto({ puzzle, className }: { puzzle: Puzzle; className?:
       alt={`Photo of ${puzzle.title}`}
       loading="lazy"
       className={`w-full bg-muted object-cover ${className ?? ''}`}
+      style={rotation ? { transform: `rotate(${rotation}deg)` } : undefined}
     />
   );
 }

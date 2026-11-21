@@ -70,6 +70,26 @@ describe('ApiStack', () => {
     template.hasResource('AWS::Cognito::UserPool', { DeletionPolicy: 'Retain' });
   });
 
+  it('lets the web app upload and download photos, and the API delete them', () => {
+    template.hasResourceProperties('AWS::S3::Bucket', {
+      CorsConfiguration: {
+        CorsRules: [
+          Match.objectLike({
+            AllowedMethods: ['POST', 'GET'],
+            AllowedOrigins: ['https://puzzles.example'],
+          }),
+        ],
+      },
+    });
+    template.hasResourceProperties('AWS::IAM::Policy', {
+      PolicyDocument: {
+        Statement: Match.arrayWith([
+          Match.objectLike({ Action: 's3:DeleteObject*', Effect: 'Allow' }),
+        ]),
+      },
+    });
+  });
+
   it('keeps the photo bucket private', () => {
     template.hasResourceProperties('AWS::S3::Bucket', {
       PublicAccessBlockConfiguration: {

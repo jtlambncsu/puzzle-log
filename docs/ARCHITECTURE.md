@@ -69,6 +69,14 @@ filled in. Saving runs the same steps as above for each row, three at a time, tr
 per row, skips rows that already saved when retrying, and invalidates the cache once at the
 end. See [ADR 0016](decisions/0016-bulk-add.md).
 
+### Rotating a saved photo
+
+The detail page rotates the preview with CSS until "Save rotation". Then the browser downloads
+the photo from its signed URL, rotates the pixels on a canvas, uploads the result as a new S3
+object, and calls `PATCH /api/puzzles/:id` with the new `imageKey`. The API deletes the old
+object. New photos are rotated the same way during upload. See
+[ADR 0017](decisions/0017-photo-rotation.md).
+
 ## Local development
 
 `npm run dev` runs the API on :3001 (in-memory storage, no login, uploads off) and the web

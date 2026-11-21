@@ -1,6 +1,6 @@
 import { http, HttpResponse } from 'msw';
 import { setupServer } from 'msw/node';
-import type { CreatePuzzleInput, Puzzle } from '@puzzle-log/shared';
+import type { CreatePuzzleInput, Puzzle, UpdatePuzzleInput } from '@puzzle-log/shared';
 
 /**
  * A tiny in-memory fake of our API. Tests talk to it through real `fetch` calls, which MSW
@@ -44,6 +44,26 @@ export const handlers = [
     });
     return HttpResponse.json(puzzle, { status: 201 });
   }),
+
+  http.patch('/api/puzzles/:id', async ({ params, request }) => {
+    const existing = db.puzzles.get(params.id as string);
+    if (!existing) return HttpResponse.json({}, { status: 404 });
+    const patch = (await request.json()) as UpdatePuzzleInput;
+    const updated: Puzzle = {
+      ...existing,
+      ...patch,
+      ...(patch.imageKey && { imageUrl: `${S3_URL}${patch.imageKey}?signed` }),
+    };
+    db.puzzles.set(updated.id, updated);
+    return HttpResponse.json(updated);
+  }),
+
+  // Downloading a stored photo (to rotate it).
+  http.get(`${S3_URL}*`, () =>
+    HttpResponse.arrayBuffer(new Uint8Array([0xff, 0xd8, 0xff]).buffer, {
+      headers: { 'Content-Type': 'image/jpeg' },
+    }),
+  ),
 
   http.delete('/api/puzzles/:id', ({ params }) =>
     db.puzzles.delete(params.id as string)

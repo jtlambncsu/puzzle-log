@@ -18,7 +18,7 @@ import {
 import { Button } from '@/components/ui/button';
 import { Skeleton } from '@/components/ui/skeleton';
 import { formatDate, puzzleSubtitle } from '@/features/puzzles/format';
-import { PuzzlePhoto } from '@/features/puzzles/PuzzleCard';
+import { RotatablePhoto } from '@/features/puzzles/RotatablePhoto';
 
 export const Route = createFileRoute('/puzzles/$puzzleId')({
   loader: async ({ context: { queryClient, api }, params }) => {
@@ -60,7 +60,7 @@ function PuzzleDetailPage() {
         </Link>
       </Button>
 
-      <PuzzlePhoto puzzle={puzzle} className="aspect-square rounded-xl" />
+      <RotatablePhoto puzzle={puzzle} />
 
       <div>
         <h1 className="font-heading text-2xl font-semibold">{puzzle.title}</h1>

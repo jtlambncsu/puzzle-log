@@ -3,9 +3,17 @@ import userEvent from '@testing-library/user-event';
 import { http, HttpResponse } from 'msw';
 import { readFileSync } from 'node:fs';
 import { join } from 'node:path';
-import { describe, expect, it } from 'vitest';
+import { describe, expect, it, vi } from 'vitest';
+import { compressImage } from '@/lib/image';
 import { db, server } from '@/test/server';
 import { renderApp } from '@/test/renderApp';
+
+// jsdom can't decode or draw images, so pass photos through unchanged and let tests check
+// which rotation was requested. (The real canvas code is checked in a browser.)
+vi.mock('@/lib/image', async (importOriginal) => ({
+  ...(await importOriginal<typeof import('@/lib/image')>()),
+  compressImage: vi.fn(async (photo: Blob) => photo),
+}));
 
 describe('puzzle list', () => {
   it('shows puzzles with their details', async () => {
@@ -251,6 +259,83 @@ describe('bulk add', () => {
 
     expect(screen.getAllByRole('group', { name: /^Puzzle \d/ })).toHaveLength(1);
     expect(screen.getByRole('button', { name: 'Save 1 puzzle' })).toBeInTheDocument();
+  });
+});
+
+describe('rotating photos', () => {
+  it('rotates a new photo before uploading it', async () => {
+    const user = userEvent.setup();
+    renderApp('/puzzles/new');
+
+    await user.upload(await screen.findByLabelText('Photo'), fixturePhoto('photo-no-exif.jpg'));
+    await user.click(screen.getByRole('button', { name: 'Rotate photo' }));
+    await user.click(screen.getByRole('button', { name: 'Rotate photo' }));
+    expect(screen.getByAltText('Selected puzzle photo')).toHaveStyle({
+      transform: 'rotate(180deg)',
+    });
+
+    await user.type(screen.getByLabelText('Title'), 'Upside down');
+    await user.click(screen.getByRole('button', { name: /save puzzle/i }));
+
+    await waitFor(() => expect(db.puzzles.size).toBe(1));
+    expect(compressImage).toHaveBeenLastCalledWith(expect.anything(), { rotation: 180 });
+  });
+
+  it('rotates each bulk photo separately', async () => {
+    const user = userEvent.setup();
+    renderApp('/puzzles/bulk');
+
+    await user.upload(await screen.findByLabelText('Choose photos'), [
+      fixturePhoto('photo-no-exif.jpg'),
+      fixturePhoto('photo-taken-2026-11-14.jpg'),
+    ]);
+    await user.click(screen.getByRole('button', { name: 'Rotate photo 2' }));
+    await user.type(screen.getByLabelText('Title for photo 1'), 'Upright');
+    await user.type(screen.getByLabelText('Title for photo 2'), 'Sideways');
+    await user.click(screen.getByRole('button', { name: 'Save 2 puzzles' }));
+
+    await waitFor(() => expect(db.puzzles.size).toBe(2));
+    const rotations = vi.mocked(compressImage).mock.calls.map(([, options]) => options?.rotation);
+    expect(rotations.slice(-2).sort()).toEqual([0, 90]);
+  });
+
+  it('rotates a saved photo and replaces it', async () => {
+    const puzzle = db.add({
+      title: 'Sideways',
+      imageKey: 'uploads/test-user/original',
+      imageUrl: 'https://photos.s3.example/uploads/test-user/original?signed',
+    });
+    const user = userEvent.setup();
+    renderApp(`/puzzles/${puzzle.id}`);
+
+    await user.click(await screen.findByRole('button', { name: 'Rotate photo' }));
+    expect(screen.getByAltText('Photo of Sideways')).toHaveStyle({ transform: 'rotate(90deg)' });
+    await user.click(screen.getByRole('button', { name: 'Save rotation' }));
+
+    expect(await screen.findByText('Photo rotated')).toBeInTheDocument();
+    expect(compressImage).toHaveBeenLastCalledWith(expect.anything(), { rotation: 90 });
+    expect(db.puzzles.get(puzzle.id)?.imageKey).toBe('uploads/test-user/photo-1');
+    // The new photo is already upright, so the preview rotation resets.
+    expect(screen.getByAltText('Photo of Sideways')).not.toHaveStyle({
+      transform: 'rotate(90deg)',
+    });
+    expect(screen.queryByRole('button', { name: 'Save rotation' })).not.toBeInTheDocument();
+  });
+
+  it('can cancel a rotation without saving', async () => {
+    const puzzle = db.add({
+      title: 'Fine as is',
+      imageKey: 'uploads/test-user/original',
+      imageUrl: 'https://photos.s3.example/uploads/test-user/original?signed',
+    });
+    const user = userEvent.setup();
+    renderApp(`/puzzles/${puzzle.id}`);
+
+    await user.click(await screen.findByRole('button', { name: 'Rotate photo' }));
+    await user.click(screen.getByRole('button', { name: 'Cancel' }));
+
+    expect(screen.queryByRole('button', { name: 'Save rotation' })).not.toBeInTheDocument();
+    expect(db.puzzles.get(puzzle.id)?.imageKey).toBe('uploads/test-user/original');
   });
 });
 

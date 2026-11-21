@@ -1,12 +1,13 @@
 import { useId, useRef, useState } from 'react';
 import { useForm } from 'react-hook-form';
 import { zodResolver } from '@hookform/resolvers/zod';
-import { ImagePlusIcon, Loader2Icon, XIcon } from 'lucide-react';
+import { ImagePlusIcon, Loader2Icon, RotateCwIcon, XIcon } from 'lucide-react';
 import { MAX_UPLOAD_BYTES, type CreatePuzzleInput } from '@puzzle-log/shared';
 import { Button } from '@/components/ui/button';
 import { Field, FieldDescription, FieldError, FieldGroup, FieldLabel } from '@/components/ui/field';
 import { Input } from '@/components/ui/input';
 import { Textarea } from '@/components/ui/textarea';
+import { nextRotation, type Rotation } from '@/lib/image';
 import { readPhotoDate } from '@/lib/photoDate';
 import { PhotoPreview } from './PhotoPreview';
 import {
@@ -17,7 +18,7 @@ import {
 } from './puzzleForm';
 
 interface PuzzleFormProps {
-  onSubmit: (input: CreatePuzzleInput, photo?: File) => Promise<unknown>;
+  onSubmit: (input: CreatePuzzleInput, photo?: File, rotation?: Rotation) => Promise<unknown>;
   submitLabel?: string;
 }
 
@@ -39,6 +40,7 @@ export function PuzzleForm({ onSubmit, submitLabel = 'Save puzzle' }: PuzzleForm
   });
   const [photo, setPhoto] = useState<File>();
   const [photoError, setPhotoError] = useState<string>();
+  const [rotation, setRotation] = useState<Rotation>(0);
   // The date we filled in from the photo, so we can label it and clear it with the photo.
   const [photoDate, setPhotoDate] = useState<string>();
 
@@ -55,15 +57,18 @@ export function PuzzleForm({ onSubmit, submitLabel = 'Save puzzle' }: PuzzleForm
     }
   }
 
-  const submit = handleSubmit((values) => onSubmit(toCreatePuzzleInput(values), photo));
+  const submit = handleSubmit((values) => onSubmit(toCreatePuzzleInput(values), photo, rotation));
 
   return (
     <form onSubmit={submit} noValidate className="space-y-6">
       <PhotoPicker
         photo={photo}
+        rotation={rotation}
+        onRotate={() => setRotation(nextRotation)}
         error={photoError}
         onChange={(file) => {
           setPhotoError(undefined);
+          setRotation(0);
           if (file && !file.type.startsWith('image/')) {
             setPhotoError('Choose an image file');
             return;
@@ -160,10 +165,14 @@ export function PuzzleForm({ onSubmit, submitLabel = 'Save puzzle' }: PuzzleForm
 
 function PhotoPicker({
   photo,
+  rotation,
+  onRotate,
   error,
   onChange,
 }: {
   photo?: File;
+  rotation: Rotation;
+  onRotate: () => void;
   error?: string;
   onChange: (file: File | undefined) => void;
 }) {
@@ -174,17 +183,29 @@ function PhotoPicker({
       <FieldLabel htmlFor={inputId}>Photo</FieldLabel>
       {photo ? (
         <div className="relative">
-          <PhotoPreview file={photo} />
-          <Button
-            type="button"
-            variant="secondary"
-            size="icon"
-            className="absolute top-2 right-2 rounded-full"
-            onClick={() => onChange(undefined)}
-            aria-label="Remove photo"
-          >
-            <XIcon />
-          </Button>
+          <PhotoPreview file={photo} rotation={rotation} />
+          <div className="absolute top-2 right-2 flex gap-2">
+            <Button
+              type="button"
+              variant="secondary"
+              size="icon"
+              className="rounded-full"
+              onClick={onRotate}
+              aria-label="Rotate photo"
+            >
+              <RotateCwIcon />
+            </Button>
+            <Button
+              type="button"
+              variant="secondary"
+              size="icon"
+              className="rounded-full"
+              onClick={() => onChange(undefined)}
+              aria-label="Remove photo"
+            >
+              <XIcon />
+            </Button>
+          </div>
         </div>
       ) : (
         <label
