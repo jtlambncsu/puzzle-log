@@ -1,5 +1,6 @@
 import { App } from 'aws-cdk-lib';
 import { ApiStack } from '../lib/api-stack.js';
+import { listSetting } from '../lib/config.js';
 import { GithubDeployStack } from '../lib/github-deploy-stack.js';
 
 const app = new App();
@@ -10,23 +11,20 @@ const env = {
 };
 
 /** Comma-separated origins allowed to call the API from a browser (your Vercel URL). */
-const allowedOrigins = (app.node.tryGetContext('allowedOrigins') ?? process.env.ALLOWED_ORIGINS)
-  ?.split(',')
-  .map((origin: string) => origin.trim())
-  .filter(Boolean);
+const allowedOrigins = listSetting(
+  app.node.tryGetContext('allowedOrigins'),
+  process.env.ALLOWED_ORIGINS,
+);
 
 /**
  * Web app URLs that login may redirect back to. Override with a comma-separated
  * `webUrls` context value or the WEB_URLS GitHub variable.
  */
-const webUrls: string[] = (
-  app.node.tryGetContext('webUrls') ??
-  process.env.WEB_URLS ??
-  'https://puzzle-log-one.vercel.app'
-)
-  .split(',')
-  .map((url: string) => url.trim())
-  .filter(Boolean);
+const webUrls = listSetting(
+  app.node.tryGetContext('webUrls'),
+  process.env.WEB_URLS,
+  'https://puzzle-log-one.vercel.app',
+);
 
 new ApiStack(app, 'PuzzleLogApi', { env, allowedOrigins, webUrls });
 
