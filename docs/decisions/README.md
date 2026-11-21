@@ -25,3 +25,5 @@ New decision? Copy [`0000-template.md`](0000-template.md) to the next number.
 | [0018](0018-search-tags-editing.md)           | Search, tags and editing: client-side filtering, URL state, Merge Patch |
 | [0019](0019-barcode-scanning.md)              | Barcode scanning: browser decoder, own barcodes first, cached lookup    |
 | [0020](0020-offline-pwa.md)                   | Installable, offline-capable app (PWA)                                  |
+| [0021](0021-puzzle-status.md)                 | Puzzle status: done, owned, wishlist                                    |
+| [0022](0022-stats-page.md)                    | Stats page: stat tiles, Recharts column chart, ranked bars              |

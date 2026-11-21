@@ -1,6 +1,6 @@
 import { createFileRoute, Link } from '@tanstack/react-router';
 import { useSuspenseQuery } from '@tanstack/react-query';
-import { ImagesIcon, PlusIcon, PuzzleIcon, SearchXIcon } from 'lucide-react';
+import { ChartColumnIcon, ImagesIcon, PlusIcon, PuzzleIcon, SearchXIcon } from 'lucide-react';
 import { z } from 'zod';
 import { puzzleStatus, statusSchema, type PuzzleStatus } from '@puzzle-log/shared';
 import { puzzlesQueryOptions, useApi } from '@/api/queries';
@@ -62,12 +62,20 @@ function PuzzleListPage() {
 
   return (
     <>
-      <h1 className="mb-3 font-heading text-xl font-semibold">
-        Your puzzles{' '}
-        <span className="text-muted-foreground" aria-live="polite">
-          ({filtered ? `${matching.length} of ${puzzles.length}` : puzzles.length})
-        </span>
-      </h1>
+      <div className="mb-3 flex items-center justify-between gap-2">
+        <h1 className="font-heading text-xl font-semibold">
+          Your puzzles{' '}
+          <span className="text-muted-foreground" aria-live="polite">
+            ({filtered ? `${matching.length} of ${puzzles.length}` : puzzles.length})
+          </span>
+        </h1>
+        <Button asChild variant="ghost" size="sm">
+          <Link to="/stats">
+            <ChartColumnIcon aria-hidden />
+            Stats
+          </Link>
+        </Button>
+      </div>
 
       <PuzzleFilters
         query={q}

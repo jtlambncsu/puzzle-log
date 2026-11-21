@@ -24,6 +24,8 @@ Live at https://puzzle-log-one.vercel.app (sign-in required).
 | Auth    | Cognito managed login, OIDC code flow + PKCE                                                       |
 | Infra   | AWS CDK, deployed by GitHub Actions (OIDC, no stored keys)                                         |
 | Hosting | Vercel (web), AWS (API)                                                                            |
+| Offline | PWA (vite-plugin-pwa / Workbox), TanStack Query cache persisted to IndexedDB                       |
+| Charts  | Recharts via shadcn/ui                                                                             |
 | Testing | Vitest, React Testing Library, MSW, Supertest, CDK assertions                                      |
 
 ## Layout
@@ -105,6 +107,7 @@ The API goes to AWS (CDK, deployed by GitHub Actions) and the web app to Vercel.
 - [x] Rotate photos before upload and after saving
 - [x] Search, tags, and editing puzzles
 - [x] Scan a box's barcode in a store to see if you've done that puzzle
+- [x] Status (done / owned / wishlist), offline-capable installable app, stats page
 - [ ] Sort the list (by date finished, pieces, title)
 - [ ] Playwright smoke tests against the deployed app
 - [ ] Mobile app: Expo / React Native in `apps/mobile`, reusing `packages/shared`

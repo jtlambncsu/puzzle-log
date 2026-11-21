@@ -92,6 +92,13 @@ the API looks the barcode up (UPCitemdb, cached in DynamoDB) and the page sugges
 puzzles with similar titles; picking one saves the barcode for next time, or "Add it" opens a
 pre-filled form. See [ADR 0019](decisions/0019-barcode-scanning.md).
 
+### Offline
+
+A Workbox service worker precaches the app (including the barcode decoder) and caches photos
+by S3 key. TanStack Query's cache is saved to IndexedDB, and the router waits for it to be
+restored, so the list, search and saved-barcode scans work with no signal. See
+[ADR 0020](decisions/0020-offline-pwa.md).
+
 ## Local development
 
 `npm run dev` runs the API on :3001 (in-memory storage, no login, uploads off) and the web
