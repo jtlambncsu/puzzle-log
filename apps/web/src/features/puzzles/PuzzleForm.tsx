@@ -4,9 +4,10 @@ import { zodResolver } from '@hookform/resolvers/zod';
 import { ImagePlusIcon, Loader2Icon, XIcon } from 'lucide-react';
 import { MAX_UPLOAD_BYTES, type CreatePuzzleInput } from '@puzzle-log/shared';
 import { Button } from '@/components/ui/button';
-import { Field, FieldError, FieldGroup, FieldLabel } from '@/components/ui/field';
+import { Field, FieldDescription, FieldError, FieldGroup, FieldLabel } from '@/components/ui/field';
 import { Input } from '@/components/ui/input';
 import { Textarea } from '@/components/ui/textarea';
+import { readPhotoDate } from '@/lib/photoDate';
 import {
   emptyPuzzleForm,
   puzzleFormSchema,
@@ -28,6 +29,8 @@ export function PuzzleForm({ onSubmit, submitLabel = 'Save puzzle' }: PuzzleForm
   const {
     register,
     handleSubmit,
+    getValues,
+    setValue,
     formState: { errors, isSubmitting },
   } = useForm<PuzzleFormValues>({
     resolver: zodResolver(puzzleFormSchema),
@@ -35,6 +38,21 @@ export function PuzzleForm({ onSubmit, submitLabel = 'Save puzzle' }: PuzzleForm
   });
   const [photo, setPhoto] = useState<File>();
   const [photoError, setPhotoError] = useState<string>();
+  // The date we filled in from the photo, so we can label it and clear it with the photo.
+  const [photoDate, setPhotoDate] = useState<string>();
+
+  // Reading EXIF is async; ignore the result if the photo changed in the meantime.
+  const latestPhoto = useRef<File>(undefined);
+
+  async function fillDateFromPhoto(file: File) {
+    const date = await readPhotoDate(file);
+    if (latestPhoto.current !== file) return;
+    // Never overwrite a date the user typed (or one from an earlier photo they kept).
+    if (date && !getValues('completedAt')) {
+      setValue('completedAt', date, { shouldDirty: true });
+      setPhotoDate(date);
+    }
+  }
 
   const submit = handleSubmit((values) => onSubmit(toCreatePuzzleInput(values), photo));
 
@@ -55,6 +73,14 @@ export function PuzzleForm({ onSubmit, submitLabel = 'Save puzzle' }: PuzzleForm
             return;
           }
           setPhoto(file);
+          latestPhoto.current = file;
+          if (file) {
+            void fillDateFromPhoto(file);
+          } else if (photoDate && getValues('completedAt') === photoDate) {
+            // Removing the photo also removes the date that came from it.
+            setValue('completedAt', '');
+            setPhotoDate(undefined);
+          }
         }}
       />
 
@@ -86,7 +112,15 @@ export function PuzzleForm({ onSubmit, submitLabel = 'Save puzzle' }: PuzzleForm
 
           <Field data-invalid={!!errors.completedAt}>
             <FieldLabel htmlFor="completedAt">Finished on</FieldLabel>
-            <Input id="completedAt" type="date" {...register('completedAt')} />
+            <Input
+              id="completedAt"
+              type="date"
+              {...register('completedAt', {
+                // Once the user edits the date, it's theirs, not the photo's.
+                onChange: () => setPhotoDate(undefined),
+              })}
+            />
+            {photoDate && <FieldDescription>Date from photo</FieldDescription>}
             <FieldError errors={[errors.completedAt]} />
           </Field>
         </div>

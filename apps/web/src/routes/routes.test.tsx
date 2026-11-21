@@ -1,6 +1,8 @@
 import { screen, waitFor, within } from '@testing-library/react';
 import userEvent from '@testing-library/user-event';
 import { http, HttpResponse } from 'msw';
+import { readFileSync } from 'node:fs';
+import { join } from 'node:path';
 import { describe, expect, it } from 'vitest';
 import { db, server } from '@/test/server';
 import { renderApp } from '@/test/renderApp';
@@ -99,6 +101,71 @@ describe('adding a puzzle', () => {
     expect(await screen.findByText('Request failed: 500')).toBeInTheDocument();
     expect(router.state.location.pathname).toBe('/puzzles/new');
     expect(screen.getByLabelText('Title')).toHaveValue('Doomed');
+  });
+});
+
+/** Small real JPEGs from `src/test/fixtures`, so the actual EXIF library runs. */
+function fixturePhoto(name: string) {
+  // Vitest runs from apps/web (in jsdom, import.meta.url isn't a file path).
+  const bytes = readFileSync(join(process.cwd(), 'src/test/fixtures', name));
+  return new File([bytes], name, { type: 'image/jpeg' });
+}
+
+describe('date from photo', () => {
+  it('fills "Finished on" with the date the photo was taken', async () => {
+    const user = userEvent.setup();
+    renderApp('/puzzles/new');
+
+    await user.upload(
+      await screen.findByLabelText('Photo'),
+      fixturePhoto('photo-taken-2026-11-14.jpg'),
+    );
+
+    await waitFor(() => expect(screen.getByLabelText('Finished on')).toHaveValue('2026-11-14'));
+    expect(screen.getByText('Date from photo')).toBeInTheDocument();
+
+    await user.type(screen.getByLabelText('Title'), 'Dated');
+    await user.click(screen.getByRole('button', { name: /save puzzle/i }));
+    await waitFor(() => expect([...db.puzzles.values()][0]?.completedAt).toBe('2026-11-14'));
+  });
+
+  it("doesn't overwrite a date you already entered", async () => {
+    const user = userEvent.setup();
+    renderApp('/puzzles/new');
+
+    await user.type(await screen.findByLabelText('Finished on'), '2026-01-02');
+    await user.upload(screen.getByLabelText('Photo'), fixturePhoto('photo-taken-2026-11-14.jpg'));
+
+    await screen.findByAltText('Selected puzzle photo');
+    // Give the async EXIF read a chance to (not) change anything.
+    await new Promise((resolve) => setTimeout(resolve, 50));
+    expect(screen.getByLabelText('Finished on')).toHaveValue('2026-01-02');
+    expect(screen.queryByText('Date from photo')).not.toBeInTheDocument();
+  });
+
+  it('clears the photo date when the photo is removed', async () => {
+    const user = userEvent.setup();
+    renderApp('/puzzles/new');
+
+    await user.upload(
+      await screen.findByLabelText('Photo'),
+      fixturePhoto('photo-taken-2026-11-14.jpg'),
+    );
+    await waitFor(() => expect(screen.getByLabelText('Finished on')).toHaveValue('2026-11-14'));
+
+    await user.click(screen.getByRole('button', { name: 'Remove photo' }));
+    expect(screen.getByLabelText('Finished on')).toHaveValue('');
+  });
+
+  it('leaves the date empty for photos without one', async () => {
+    const user = userEvent.setup();
+    renderApp('/puzzles/new');
+
+    await user.upload(await screen.findByLabelText('Photo'), fixturePhoto('photo-no-exif.jpg'));
+
+    await screen.findByAltText('Selected puzzle photo');
+    await new Promise((resolve) => setTimeout(resolve, 50));
+    expect(screen.getByLabelText('Finished on')).toHaveValue('');
   });
 });
 
