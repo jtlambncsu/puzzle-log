@@ -4,6 +4,7 @@ import { toast } from 'sonner';
 import { useCreatePuzzle } from '@/api/queries';
 import { Button } from '@/components/ui/button';
 import { PuzzleForm } from '@/features/puzzles/PuzzleForm';
+import { toCreatePuzzleInput } from '@/features/puzzles/puzzleForm';
 
 export const Route = createFileRoute('/puzzles/new')({
   component: NewPuzzlePage,
@@ -25,8 +26,9 @@ function NewPuzzlePage() {
         </Button>
       </div>
       <PuzzleForm
-        onSubmit={async (input, photo, rotation) => {
+        onSubmit={async (values, photo, rotation) => {
           try {
+            const input = toCreatePuzzleInput(values);
             const puzzle = await createPuzzle.mutateAsync({ input, photo, rotation });
             toast.success(`Saved “${puzzle.title}”`);
             await navigate({ to: '/' });

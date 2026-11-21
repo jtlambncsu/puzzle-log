@@ -1,8 +1,9 @@
 import { useId, useRef, useState } from 'react';
-import { useForm } from 'react-hook-form';
+import { Controller, useForm } from 'react-hook-form';
 import { zodResolver } from '@hookform/resolvers/zod';
 import { ImagePlusIcon, Loader2Icon, RotateCwIcon, XIcon } from 'lucide-react';
-import { MAX_UPLOAD_BYTES, type CreatePuzzleInput } from '@puzzle-log/shared';
+import { MAX_UPLOAD_BYTES } from '@puzzle-log/shared';
+import { useAllTags } from '@/api/queries';
 import { Button } from '@/components/ui/button';
 import { Field, FieldDescription, FieldError, FieldGroup, FieldLabel } from '@/components/ui/field';
 import { Input } from '@/components/ui/input';
@@ -10,16 +11,16 @@ import { Textarea } from '@/components/ui/textarea';
 import { nextRotation, type Rotation } from '@/lib/image';
 import { readPhotoDate } from '@/lib/photoDate';
 import { PhotoPreview } from './PhotoPreview';
-import {
-  emptyPuzzleForm,
-  puzzleFormSchema,
-  toCreatePuzzleInput,
-  type PuzzleFormValues,
-} from './puzzleForm';
+import { emptyPuzzleForm, puzzleFormSchema, type PuzzleFormValues } from './puzzleForm';
+import { TagInput } from './TagInput';
 
 interface PuzzleFormProps {
-  onSubmit: (input: CreatePuzzleInput, photo?: File, rotation?: Rotation) => Promise<unknown>;
+  onSubmit: (values: PuzzleFormValues, photo?: File, rotation?: Rotation) => Promise<unknown>;
   submitLabel?: string;
+  /** Start from a saved puzzle (editing) instead of a blank form. */
+  defaultValues?: PuzzleFormValues;
+  /** Show the photo picker. Off when editing: photos are rotated on the detail page. */
+  withPhoto?: boolean;
 }
 
 /**
@@ -27,16 +28,23 @@ interface PuzzleFormProps {
  * doesn't re-render the whole form, and validates with the Zod schema on submit and then
  * on every change once a field has an error.
  */
-export function PuzzleForm({ onSubmit, submitLabel = 'Save puzzle' }: PuzzleFormProps) {
+export function PuzzleForm({
+  onSubmit,
+  submitLabel = 'Save puzzle',
+  defaultValues = emptyPuzzleForm,
+  withPhoto = true,
+}: PuzzleFormProps) {
+  const tagSuggestions = useAllTags();
   const {
     register,
+    control,
     handleSubmit,
     getValues,
     setValue,
     formState: { errors, isSubmitting },
   } = useForm<PuzzleFormValues>({
     resolver: zodResolver(puzzleFormSchema),
-    defaultValues: emptyPuzzleForm,
+    defaultValues,
   });
   const [photo, setPhoto] = useState<File>();
   const [photoError, setPhotoError] = useState<string>();
@@ -57,38 +65,40 @@ export function PuzzleForm({ onSubmit, submitLabel = 'Save puzzle' }: PuzzleForm
     }
   }
 
-  const submit = handleSubmit((values) => onSubmit(toCreatePuzzleInput(values), photo, rotation));
+  const submit = handleSubmit((values) => onSubmit(values, photo, rotation));
 
   return (
     <form onSubmit={submit} noValidate className="space-y-6">
-      <PhotoPicker
-        photo={photo}
-        rotation={rotation}
-        onRotate={() => setRotation(nextRotation)}
-        error={photoError}
-        onChange={(file) => {
-          setPhotoError(undefined);
-          setRotation(0);
-          if (file && !file.type.startsWith('image/')) {
-            setPhotoError('Choose an image file');
-            return;
-          }
-          // Photos are compressed before upload, so only reject truly huge originals.
-          if (file && file.size > MAX_UPLOAD_BYTES * 4) {
-            setPhotoError('That photo is too large');
-            return;
-          }
-          setPhoto(file);
-          latestPhoto.current = file;
-          if (file) {
-            void fillDateFromPhoto(file);
-          } else if (photoDate && getValues('completedAt') === photoDate) {
-            // Removing the photo also removes the date that came from it.
-            setValue('completedAt', '');
-            setPhotoDate(undefined);
-          }
-        }}
-      />
+      {withPhoto && (
+        <PhotoPicker
+          photo={photo}
+          rotation={rotation}
+          onRotate={() => setRotation(nextRotation)}
+          error={photoError}
+          onChange={(file) => {
+            setPhotoError(undefined);
+            setRotation(0);
+            if (file && !file.type.startsWith('image/')) {
+              setPhotoError('Choose an image file');
+              return;
+            }
+            // Photos are compressed before upload, so only reject truly huge originals.
+            if (file && file.size > MAX_UPLOAD_BYTES * 4) {
+              setPhotoError('That photo is too large');
+              return;
+            }
+            setPhoto(file);
+            latestPhoto.current = file;
+            if (file) {
+              void fillDateFromPhoto(file);
+            } else if (photoDate && getValues('completedAt') === photoDate) {
+              // Removing the photo also removes the date that came from it.
+              setValue('completedAt', '');
+              setPhotoDate(undefined);
+            }
+          }}
+        />
+      )}
 
       <FieldGroup>
         <Field data-invalid={!!errors.title}>
@@ -140,6 +150,24 @@ export function PuzzleForm({ onSubmit, submitLabel = 'Save puzzle' }: PuzzleForm
             {...register('brand')}
           />
           <FieldError errors={[errors.brand]} />
+        </Field>
+
+        <Field data-invalid={!!errors.tags}>
+          <FieldLabel htmlFor="tags">Tags</FieldLabel>
+          {/* Not a native input, so it's connected with a Controller instead of register. */}
+          <Controller
+            control={control}
+            name="tags"
+            render={({ field }) => (
+              <TagInput
+                id="tags"
+                value={field.value}
+                onChange={field.onChange}
+                suggestions={tagSuggestions}
+              />
+            )}
+          />
+          <FieldError errors={[errors.tags]} />
         </Field>
 
         <Field data-invalid={!!errors.notes}>

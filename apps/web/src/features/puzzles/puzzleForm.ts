@@ -1,5 +1,12 @@
 import { z } from 'zod';
-import { createPuzzleSchema, type CreatePuzzleInput } from '@puzzle-log/shared';
+import {
+  createPuzzleSchema,
+  MAX_TAGS,
+  tagSchema,
+  type CreatePuzzleInput,
+  type Puzzle,
+  type UpdatePuzzleInput,
+} from '@puzzle-log/shared';
 
 const { title, brand, notes } = createPuzzleSchema.shape;
 
@@ -18,6 +25,7 @@ export const puzzleFormSchema = z.object({
     .refine((value) => value === '' || /^[1-9]\d{0,5}$/.test(value), 'Enter a whole number'),
   completedAt: z.string(),
   notes: notes.unwrap(),
+  tags: z.array(tagSchema).max(MAX_TAGS),
 });
 
 export type PuzzleFormValues = z.infer<typeof puzzleFormSchema>;
@@ -28,7 +36,20 @@ export const emptyPuzzleForm: PuzzleFormValues = {
   pieceCount: '',
   completedAt: '',
   notes: '',
+  tags: [],
 };
+
+/** Fills the form from a saved puzzle, for editing. */
+export function puzzleToFormValues(puzzle: Puzzle): PuzzleFormValues {
+  return {
+    title: puzzle.title,
+    brand: puzzle.brand ?? '',
+    pieceCount: puzzle.pieceCount ? String(puzzle.pieceCount) : '',
+    completedAt: puzzle.completedAt ?? '',
+    notes: puzzle.notes ?? '',
+    tags: puzzle.tags ?? [],
+  };
+}
 
 /** Blank fields become `undefined` so they're left out of the saved puzzle. */
 export function toCreatePuzzleInput(values: PuzzleFormValues): CreatePuzzleInput {
@@ -38,5 +59,22 @@ export function toCreatePuzzleInput(values: PuzzleFormValues): CreatePuzzleInput
     pieceCount: values.pieceCount ? Number(values.pieceCount) : undefined,
     completedAt: values.completedAt || undefined,
     notes: values.notes.trim() || undefined,
+    tags: values.tags.length ? values.tags : undefined,
   });
+}
+
+/**
+ * The edit form sends every field, as a JSON Merge Patch: a field left blank becomes `null`,
+ * which removes it from the saved puzzle.
+ */
+export function toUpdatePuzzleInput(values: PuzzleFormValues): UpdatePuzzleInput {
+  const input = toCreatePuzzleInput(values);
+  return {
+    title: input.title,
+    brand: input.brand ?? null,
+    pieceCount: input.pieceCount ?? null,
+    completedAt: input.completedAt ?? null,
+    notes: input.notes ?? null,
+    tags: input.tags ?? null,
+  };
 }

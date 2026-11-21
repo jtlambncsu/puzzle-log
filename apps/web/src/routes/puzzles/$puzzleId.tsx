@@ -1,6 +1,6 @@
 import { createFileRoute, Link, notFound, useNavigate } from '@tanstack/react-router';
 import { useSuspenseQuery } from '@tanstack/react-query';
-import { ArrowLeftIcon, Trash2Icon } from 'lucide-react';
+import { ArrowLeftIcon, PencilIcon, Trash2Icon } from 'lucide-react';
 import { toast } from 'sonner';
 import { ApiError } from '@/api/client';
 import { puzzleQueryOptions, useApi, useDeletePuzzle } from '@/api/queries';
@@ -15,6 +15,7 @@ import {
   AlertDialogTitle,
   AlertDialogTrigger,
 } from '@/components/ui/alert-dialog';
+import { Badge } from '@/components/ui/badge';
 import { Button } from '@/components/ui/button';
 import { Skeleton } from '@/components/ui/skeleton';
 import { formatDate, puzzleSubtitle } from '@/features/puzzles/format';
@@ -63,7 +64,15 @@ function PuzzleDetailPage() {
       <RotatablePhoto puzzle={puzzle} />
 
       <div>
-        <h1 className="font-heading text-2xl font-semibold">{puzzle.title}</h1>
+        <div className="flex items-start justify-between gap-2">
+          <h1 className="font-heading text-2xl font-semibold">{puzzle.title}</h1>
+          <Button asChild variant="outline" size="sm" className="shrink-0">
+            <Link to="/puzzles/$puzzleId/edit" params={{ puzzleId: puzzle.id }}>
+              <PencilIcon aria-hidden />
+              Edit
+            </Link>
+          </Button>
+        </div>
         {puzzleSubtitle(puzzle) && (
           <p className="text-muted-foreground">{puzzleSubtitle(puzzle)}</p>
         )}
@@ -71,6 +80,21 @@ function PuzzleDetailPage() {
           <p className="text-sm text-muted-foreground">Finished {formatDate(puzzle.completedAt)}</p>
         )}
       </div>
+
+      {puzzle.tags && puzzle.tags.length > 0 && (
+        <ul className="flex flex-wrap gap-1.5" aria-label="Tags">
+          {puzzle.tags.map((tag) => (
+            <li key={tag}>
+              {/* Each tag links to the list filtered to that tag. */}
+              <Badge asChild variant="secondary" className="h-7 text-sm">
+                <Link to="/" search={{ tag }}>
+                  {tag}
+                </Link>
+              </Badge>
+            </li>
+          ))}
+        </ul>
+      )}
 
       {puzzle.notes && <p className="whitespace-pre-wrap">{puzzle.notes}</p>}
 

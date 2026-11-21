@@ -241,7 +241,8 @@ describe('bulk add', () => {
     expect(db.puzzles.size).toBe(1);
 
     failCatCafe = false;
-    await user.click(screen.getByRole('button', { name: 'Save 1 puzzle' }));
+    // The batch finishes (and the button returns) once the list cache has refreshed.
+    await user.click(await screen.findByRole('button', { name: 'Save 1 puzzle' }));
 
     await waitFor(() => expect(router.state.location.pathname).toBe('/'));
     expect([...db.puzzles.values()].map((p) => p.title).sort()).toEqual([
@@ -344,6 +345,161 @@ describe('rotating photos', () => {
 
     expect(screen.queryByRole('button', { name: 'Save rotation' })).not.toBeInTheDocument();
     expect(db.puzzles.get(puzzle.id)?.imageKey).toBe('uploads/test-user/original');
+  });
+});
+
+describe('search and tags', () => {
+  function addLibrary() {
+    db.add({ title: 'Battle of Hoth', brand: 'Ravensburger', tags: ['Star Wars'] });
+    db.add({ title: 'Endor Forest', pieceCount: 1000, tags: ['star wars', 'Forest'] });
+    db.add({ title: 'Café Terrace', notes: 'Van Gogh' });
+  }
+
+  it('finds puzzles as you type and keeps the search in the URL', async () => {
+    addLibrary();
+    const user = userEvent.setup();
+    const { router } = renderApp('/');
+
+    await user.type(await screen.findByLabelText('Search puzzles'), 'cafe');
+
+    expect(screen.getByText('Café Terrace')).toBeInTheDocument();
+    expect(screen.queryByText('Battle of Hoth')).not.toBeInTheDocument();
+    expect(screen.getByRole('heading', { name: /your puzzles/i })).toHaveTextContent('(1 of 3)');
+    expect(router.state.location.search).toEqual({ q: 'cafe' });
+
+    await user.click(screen.getByRole('button', { name: 'Clear search' }));
+    expect(screen.getByText('Battle of Hoth')).toBeInTheDocument();
+  });
+
+  it('searches piece counts too', async () => {
+    addLibrary();
+    renderApp('/?q=1000');
+    // Typing "1000" and reloading must still work (the URL parser reads it as a number).
+    expect(await screen.findByText('Endor Forest')).toBeInTheDocument();
+    expect(screen.queryByText('Battle of Hoth')).not.toBeInTheDocument();
+  });
+
+  it('filters by a tag chip, merging different capitalizations', async () => {
+    addLibrary();
+    const user = userEvent.setup();
+    renderApp('/');
+
+    const chip = await screen.findByRole('button', { name: 'Star Wars, 2 puzzles' });
+    await user.click(chip);
+
+    expect(chip).toHaveAttribute('aria-pressed', 'true');
+    expect(screen.getByText('Battle of Hoth')).toBeInTheDocument();
+    expect(screen.getByText('Endor Forest')).toBeInTheDocument();
+    expect(screen.queryByText('Café Terrace')).not.toBeInTheDocument();
+
+    await user.click(chip); // tapping again clears it
+    expect(screen.getByText('Café Terrace')).toBeInTheDocument();
+  });
+
+  it('explains when nothing matches', async () => {
+    addLibrary();
+    const user = userEvent.setup();
+    renderApp('/?tag=Forest');
+
+    await user.type(await screen.findByLabelText('Search puzzles'), 'hoth');
+    expect(screen.getByText(/No puzzles match “hoth” tagged “Forest”/)).toBeInTheDocument();
+
+    await user.click(screen.getByRole('button', { name: 'Clear filters' }));
+    expect(screen.getAllByRole('listitem').length).toBeGreaterThanOrEqual(3);
+  });
+
+  it('links tags on a puzzle to the filtered list', async () => {
+    const hoth = db.add({ title: 'Battle of Hoth', tags: ['Star Wars'] });
+    db.add({ title: 'Not Star Wars' });
+    const user = userEvent.setup();
+    const { router } = renderApp(`/puzzles/${hoth.id}`);
+
+    await user.click(await screen.findByRole('link', { name: 'Star Wars' }));
+
+    await waitFor(() => expect(router.state.location.search).toEqual({ tag: 'Star Wars' }));
+    expect(await screen.findByRole('heading', { name: /your puzzles/i })).toHaveTextContent(
+      '(1 of 2)',
+    );
+  });
+
+  it('adds tags with Enter, commas or suggestions when creating a puzzle', async () => {
+    db.add({ title: 'Existing', tags: ['Disney'] });
+    const user = userEvent.setup();
+    renderApp('/puzzles/new');
+
+    await user.type(await screen.findByLabelText('Title'), 'Frozen');
+    await user.type(screen.getByLabelText('Tags'), 'Snow, Winter{Enter}');
+    await user.click(await screen.findByRole('button', { name: 'Disney' }));
+    // Backspace in the empty box removes the last tag.
+    await user.type(screen.getByLabelText('Tags'), 'Oops{Enter}{Backspace}');
+    await user.click(screen.getByRole('button', { name: /save puzzle/i }));
+
+    await waitFor(() => expect(db.puzzles.size).toBe(2));
+    const frozen = [...db.puzzles.values()].find((p) => p.title === 'Frozen');
+    expect(frozen?.tags).toEqual(['Snow', 'Winter', 'Disney']);
+  });
+
+  it('suggests tags that start with what you type', async () => {
+    db.add({ title: 'Existing', tags: ['Movies', 'Star Wars', 'Snow'] });
+    const user = userEvent.setup();
+    renderApp('/puzzles/new');
+
+    await user.type(await screen.findByLabelText('Tags'), 's');
+
+    const suggestions = await screen.findByLabelText('Suggested tags');
+    expect(
+      within(suggestions)
+        .getAllByRole('button')
+        .map((b) => b.textContent),
+    ).toEqual(['Snow', 'Star Wars']);
+  });
+
+  it('tags every photo in a bulk add', async () => {
+    const user = userEvent.setup();
+    renderApp('/puzzles/bulk');
+
+    await user.upload(await screen.findByLabelText('Choose photos'), [
+      fixturePhoto('photo-no-exif.jpg'),
+      fixturePhoto('photo-taken-2026-11-14.jpg'),
+    ]);
+    await user.type(screen.getByLabelText('Tags for all photos'), 'Star Wars{Enter}');
+    await user.type(screen.getByLabelText('Title for photo 1'), 'Hoth');
+    await user.type(screen.getByLabelText('Title for photo 2'), 'Endor');
+    await user.click(screen.getByRole('button', { name: 'Save 2 puzzles' }));
+
+    await waitFor(() => expect(db.puzzles.size).toBe(2));
+    expect([...db.puzzles.values()].map((p) => p.tags)).toEqual([['Star Wars'], ['Star Wars']]);
+  });
+});
+
+describe('editing a puzzle', () => {
+  it('starts from the saved values and sends a merge patch', async () => {
+    const puzzle = db.add({ title: 'Hoth', brand: 'Ravensburger', pieceCount: 1000 });
+    const user = userEvent.setup();
+    const { router } = renderApp(`/puzzles/${puzzle.id}`);
+
+    await user.click(await screen.findByRole('link', { name: 'Edit' }));
+    expect(await screen.findByLabelText('Title')).toHaveValue('Hoth');
+    expect(screen.getByLabelText('Brand')).toHaveValue('Ravensburger');
+    // Editing doesn't offer a new photo (rotation lives on the detail page).
+    expect(screen.queryByText('Take or choose a photo')).not.toBeInTheDocument();
+
+    await user.clear(screen.getByLabelText('Brand'));
+    await user.type(screen.getByLabelText('Tags'), 'Star Wars{Enter}');
+    await user.click(screen.getByRole('button', { name: 'Save changes' }));
+
+    await waitFor(() => expect(router.state.location.pathname).toBe(`/puzzles/${puzzle.id}`));
+    // Blank fields are sent as null, which removes them.
+    expect(db.patches.at(-1)).toEqual({
+      title: 'Hoth',
+      brand: null,
+      pieceCount: 1000,
+      completedAt: null,
+      notes: null,
+      tags: ['Star Wars'],
+    });
+    expect(await screen.findByRole('link', { name: 'Star Wars' })).toBeInTheDocument();
+    expect(screen.queryByText(/Ravensburger/)).not.toBeInTheDocument();
   });
 });
 
