@@ -13,7 +13,7 @@ apps/
   web/        React 19 + Vite frontend (Vitest + React Testing Library)
 packages/
   shared/     Types and Zod schemas shared by the API and every client
-infra/        AWS CDK: DynamoDB, S3, Lambda, API Gateway, GitHub deploy role
+infra/        AWS CDK: Cognito, DynamoDB, S3, Lambda, API Gateway, GitHub deploy role
 docs/         Deployment guide
 ```
 
@@ -57,7 +57,8 @@ Add a dependency to one workspace with `npm i <pkg> -w @puzzle-log/api`.
 | DELETE | `/api/puzzles/:id` | Delete                       |
 | POST   | `/api/uploads`     | Get a presigned photo upload |
 
-Locally, data is stored in memory (it resets on restart) and photo uploads are off. In
+Locally, data is stored in memory (it resets on restart), photo uploads are off, and there
+is no login: every request belongs to one dev user. In
 AWS, the CDK stack sets `PUZZLES_TABLE` and `PHOTOS_BUCKET`, so the same code uses
 DynamoDB and S3 (see `apps/api/src/config.ts`).
 
@@ -80,6 +81,6 @@ The API goes to AWS (CDK, deployed by GitHub Actions) and the web app to Vercel.
 - [x] Photo uploads API: presigned S3 POSTs, so clients upload straight to S3
 - [x] Deploy: API on Lambda + API Gateway via CDK, web on Vercel
 - [ ] **React practice:** photo picker and upload in the add-puzzle form
-- [ ] Auth (Cognito)
+- [x] Auth: Cognito managed login (OIDC + PKCE), JWT checked at API Gateway
 - [ ] Mobile app: Expo / React Native in `apps/mobile`, reusing `packages/shared`,
       with the camera used to photograph finished puzzles

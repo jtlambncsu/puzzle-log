@@ -13,7 +13,7 @@ export const createPuzzleSchema = z.object({
   /** S3 object key returned by `POST /api/uploads`. */
   imageKey: z
     .string()
-    .regex(/^uploads\/[\w-]+$/, 'Invalid image key')
+    .regex(/^uploads\/[\w-]+\/[\w-]+$/, 'Invalid image key')
     .optional(),
 });
 
@@ -21,6 +21,8 @@ export type CreatePuzzleInput = z.infer<typeof createPuzzleSchema>;
 
 export interface Puzzle extends CreatePuzzleInput {
   id: string;
+  /** The Cognito user (`sub`) who owns this puzzle. */
+  userId: string;
   createdAt: string;
   /** Short-lived URL for viewing the photo, added by the API when `imageKey` is set. */
   imageUrl?: string;

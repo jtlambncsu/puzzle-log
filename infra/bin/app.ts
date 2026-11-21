@@ -15,7 +15,20 @@ const allowedOrigins = (app.node.tryGetContext('allowedOrigins') ?? process.env.
   .map((origin: string) => origin.trim())
   .filter(Boolean);
 
-new ApiStack(app, 'PuzzleLogApi', { env, allowedOrigins });
+/**
+ * Web app URLs that login may redirect back to. Override with a comma-separated
+ * `webUrls` context value or the WEB_URLS GitHub variable.
+ */
+const webUrls: string[] = (
+  app.node.tryGetContext('webUrls') ??
+  process.env.WEB_URLS ??
+  'https://puzzle-log-one.vercel.app'
+)
+  .split(',')
+  .map((url: string) => url.trim())
+  .filter(Boolean);
+
+new ApiStack(app, 'PuzzleLogApi', { env, allowedOrigins, webUrls });
 
 /**
  * One-time setup, deployed from your machine: lets GitHub Actions deploy PuzzleLogApi.

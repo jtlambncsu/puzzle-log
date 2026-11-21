@@ -5,8 +5,11 @@ import { uploadsRouter } from './routes/uploads.js';
 import { InMemoryPuzzleStore } from './stores/memory.js';
 import type { PuzzleStore } from './stores/types.js';
 import type { PhotoStorage } from './photos/types.js';
+import { requireUser, type ResolveUser } from './auth.js';
 
 export interface AppDeps {
+  /** How to identify the caller. Required, so no entry point can forget auth. */
+  resolveUser: ResolveUser;
   store?: PuzzleStore;
   /** Omit to disable photo uploads (local development without AWS). */
   photos?: PhotoStorage;
@@ -15,10 +18,11 @@ export interface AppDeps {
 }
 
 export function createApp({
+  resolveUser,
   store = new InMemoryPuzzleStore(),
   photos,
   allowedOrigins,
-}: AppDeps = {}) {
+}: AppDeps) {
   const app = express();
 
   app.disable('x-powered-by');
@@ -29,8 +33,10 @@ export function createApp({
     res.json({ status: 'ok' });
   });
 
-  app.use('/api/puzzles', puzzlesRouter(store, photos));
-  app.use('/api/uploads', uploadsRouter(photos));
+  // Everything below needs a signed-in user. In AWS, API Gateway also rejects requests
+  // without a valid token before they reach Lambda; this is a second line of defense.
+  app.use('/api/puzzles', requireUser(resolveUser), puzzlesRouter(store, photos));
+  app.use('/api/uploads', requireUser(resolveUser), uploadsRouter(photos));
 
   app.use('/api', (_req, res) => {
     res.status(404).json({ error: 'Not found' });

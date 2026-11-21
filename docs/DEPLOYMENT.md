@@ -5,7 +5,9 @@ The **API runs on AWS** and the **web app runs on Vercel**.
 ```
 Browser / phone ──► Vercel (React app)
        │
-       ├──► API Gateway ──► Lambda (Express API) ──► DynamoDB (puzzles)
+       ├──► Cognito managed login ──► access token
+       │
+       ├──► API Gateway (checks token) ──► Lambda (Express API) ──► DynamoDB (puzzles)
        │                          │
        │                          └── signs upload/view URLs
        └──► S3 (photos, uploaded directly with a presigned POST)
@@ -79,10 +81,11 @@ variable**. Use repository variables, not secrets (the workflow reads `vars.*`) 
 environment variables (the deploy job doesn't use a GitHub environment, and the AWS role
 only trusts the `main` branch identity):
 
-| Variable              | Value                                       |
-| --------------------- | ------------------------------------------- |
-| `AWS_DEPLOY_ROLE_ARN` | The `DeployRoleArn` from step 3             |
-| `AWS_REGION`          | `us-east-1` (optional; this is the default) |
+| Variable              | Value                                                                                                                                                    |
+| --------------------- | -------------------------------------------------------------------------------------------------------------------------------------------------------- |
+| `AWS_DEPLOY_ROLE_ARN` | The `DeployRoleArn` from step 3                                                                                                                          |
+| `AWS_REGION`          | `us-east-1` (optional; this is the default)                                                                                                              |
+| `WEB_URLS`            | Optional. Overrides the web app URLs login may redirect to (comma-separated). Defaults to `https://puzzle-log-one.vercel.app`, set in `infra/bin/app.ts` |
 
 From now on, every push to `main` runs the checks and then the `deploy-api` job.
 
@@ -103,18 +106,42 @@ Check it: `curl <ApiUrl>/api/health` should return `{"status":"ok"}`.
 
 1. **Add New → Project**, then import this GitHub repo.
 2. **Root Directory:** `apps/web`. Vercel detects Vite and the npm workspace.
-3. **Environment Variables:** `VITE_API_URL` = the `ApiUrl` from step 5, with no trailing
-   slash. Add it for Production and Preview.
+3. **Environment Variables**, from the `PuzzleLogApi` stack outputs (step 5):
+
+   | Variable                 | Stack output       |
+   | ------------------------ | ------------------ |
+   | `VITE_API_URL`           | `ApiUrl`           |
+   | `VITE_COGNITO_AUTHORITY` | `CognitoAuthority` |
+   | `VITE_COGNITO_CLIENT_ID` | `CognitoClientId`  |
+   | `VITE_COGNITO_DOMAIN`    | `CognitoDomain`    |
+
 4. Deploy.
 
 Vercel then deploys `main` to production and gives every PR a preview URL. `VITE_*`
 variables are baked in at build time, so redeploy after changing one.
 
+### 7. Create your login
+
+Sign-up is turned off, so users are created by hand:
+
+1. AWS console → **Cognito → User pools** → the `PuzzleLogApi` pool → **Users → Create
+   user**.
+2. Choose **Send an email invitation**, enter your email, check **Mark email address as
+   verified**, and let Cognito generate a temporary password.
+3. Open the web app, sign in with the emailed password, and choose a new one.
+
+To let someone else in later, create a user for them the same way. Each user only ever
+sees their own puzzles and photos.
+
 ## Day to day
 
 - Push or merge to `main`: the API deploys from GitHub Actions and the web app from Vercel.
 - Open a PR: CI runs and Vercel posts a preview link. The preview talks to the production
-  API (there's only one environment for now).
+  API (there's only one environment for now). You **can't sign in on preview URLs**:
+  Cognito only redirects to exact URLs listed in `WEB_URLS`, and preview URLs change.
+- Local development needs no login: the local API treats every request as one dev user.
+  To test real login locally, put the four `VITE_*` values in `apps/web/.env.local`. The
+  local API still ignores the token.
 - Preview infrastructure changes locally: `cd infra && npx cdk diff PuzzleLogApi`.
 - View API logs: CloudWatch → Log groups → `PuzzleLogApi-ApiLogs…`.
 
@@ -127,18 +154,27 @@ means the role's trust policy doesn't match the token GitHub sent. Check, in ord
   It trusts both GitHub subject formats: `repo:owner@ID/name@ID:ref:refs/heads/main` and
   the legacy `repo:owner/name:ref:refs/heads/main`.
 - The job ran on `main`. The role trusts no other branch, so PR runs can't deploy.
+
+**`redirect_mismatch` on the Cognito login page** means the URL you opened isn't in
+`WEB_URLS`. Add it (exactly, no trailing slash) and redeploy the API.
+
+**Everything says "Your session has expired"** right after a deploy usually means the
+Vercel build is missing the `VITE_COGNITO_*` variables, so it never signs in. Add them and
+redeploy on Vercel.
+
 - IAM → Identity providers has `token.actions.githubusercontent.com` with audience
   `sts.amazonaws.com`.
 
 ## Security and cost notes
 
-- **The API has no login yet.** Anyone who finds the URL can add or delete puzzles and
-  request uploads. Mitigations in place:
-  - API Gateway throttles to 10 requests per second.
-  - Uploads must be images of 10 MB or less, and upload links expire after 5 minutes.
-  - The bucket is private: photos are only viewable through 1-hour signed links.
-
-  Adding auth (Cognito) is the next step before you store anything you care about.
+- **Login:** API Gateway rejects any request without a valid Cognito access token (only
+  `/api/health` is public), and the Lambda checks for a user again. Puzzles are stored per
+  user, and photos live under `uploads/<userId>/`, so users can't reach each other's data.
+- **Limits:** API Gateway throttles to 10 requests per second. Uploads must be images of
+  10 MB or less, and upload links expire after 5 minutes. The bucket is private: photos
+  are only viewable through 1-hour signed links.
+- **Tokens** are kept in the browser's localStorage so you stay signed in. Access tokens
+  last 1 hour and refresh automatically for 30 days.
 
 - **CORS** allows any origin by default. Once you have a fixed domain you can set the
   `ALLOWED_ORIGINS` GitHub variable (comma-separated, e.g. `https://puzzles.example.com`),
@@ -155,5 +191,9 @@ cd infra
 npx cdk destroy PuzzleLogApi
 ```
 
-This removes the Lambda and API but **keeps** the table and bucket. Delete those by hand
-in the console if you really want them gone.
+This removes the Lambda and API but **keeps** the table, bucket and user pool. Delete
+those by hand in the console if you really want them gone.
+
+When login was added, the puzzles table was replaced with one keyed by user. The old
+`PuzzleLogApi-Puzzles…` table (without `ByUser`) is no longer used and can be deleted in
+the DynamoDB console.

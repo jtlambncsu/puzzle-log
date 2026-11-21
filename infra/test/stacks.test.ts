@@ -6,12 +6,60 @@ import { GithubDeployStack } from '../lib/github-deploy-stack.js';
 
 describe('ApiStack', () => {
   const template = Template.fromStack(
-    new ApiStack(new App(), 'Test', { allowedOrigins: ['https://puzzles.example'] }),
+    new ApiStack(new App(), 'Test', {
+      allowedOrigins: ['https://puzzles.example'],
+      webUrls: ['https://puzzles.example/'],
+    }),
   );
 
-  it('keeps data and photos if the stack is deleted', () => {
+  it('requires a Cognito token on every route except the health check', () => {
+    template.hasResourceProperties('AWS::ApiGatewayV2::Route', {
+      RouteKey: '$default',
+      AuthorizationType: 'JWT',
+    });
+    template.hasResourceProperties('AWS::ApiGatewayV2::Route', {
+      RouteKey: 'GET /api/health',
+      AuthorizationType: 'NONE',
+    });
+    template.resourceCountIs('AWS::ApiGatewayV2::Route', 2);
+  });
+
+  it('answers CORS preflights at API Gateway, before the authorizer', () => {
+    template.hasResourceProperties('AWS::ApiGatewayV2::Api', {
+      CorsConfiguration: Match.objectLike({
+        AllowOrigins: ['https://puzzles.example'],
+        AllowHeaders: ['authorization', 'content-type'],
+      }),
+    });
+  });
+
+  it('only lets admins create users', () => {
+    template.hasResourceProperties('AWS::Cognito::UserPool', {
+      AdminCreateUserConfig: { AllowAdminCreateUserOnly: true },
+    });
+  });
+
+  it('uses the code flow and only redirects to known web URLs', () => {
+    template.hasResourceProperties('AWS::Cognito::UserPoolClient', {
+      AllowedOAuthFlows: ['code'],
+      CallbackURLs: ['https://puzzles.example', 'http://localhost:5173'],
+      GenerateSecret: false,
+    });
+  });
+
+  it('keys puzzles by user', () => {
+    template.hasResourceProperties('AWS::DynamoDB::GlobalTable', {
+      KeySchema: [
+        { AttributeName: 'userId', KeyType: 'HASH' },
+        { AttributeName: 'id', KeyType: 'RANGE' },
+      ],
+    });
+  });
+
+  it('keeps data, photos and users if the stack is deleted', () => {
     template.hasResource('AWS::DynamoDB::GlobalTable', { DeletionPolicy: 'Retain' });
     template.hasResource('AWS::S3::Bucket', { DeletionPolicy: 'Retain' });
+    template.hasResource('AWS::Cognito::UserPool', { DeletionPolicy: 'Retain' });
   });
 
   it('keeps the photo bucket private', () => {
