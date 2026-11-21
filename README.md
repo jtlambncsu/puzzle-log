@@ -75,6 +75,7 @@ Add a dependency to one workspace with `npm i <pkg> -w @puzzle-log/api`.
 | GET    | `/api/puzzles`     | List puzzles (newest first)  |
 | GET    | `/api/puzzles/:id` | Get one puzzle               |
 | POST   | `/api/puzzles`     | Create (validated with Zod)  |
+| PATCH  | `/api/puzzles/:id` | Update some fields           |
 | DELETE | `/api/puzzles/:id` | Delete                       |
 | POST   | `/api/uploads`     | Get a presigned photo upload |
 
@@ -100,6 +101,7 @@ The API goes to AWS (CDK, deployed by GitHub Actions) and the web app to Vercel.
 - [x] Login (Cognito) with per-user data
 - [x] Puzzle list, detail and delete; add-puzzle form with photo upload
 - [x] Dates from photo EXIF; bulk add from many photos
+- [x] Rotate photos before upload and after saving
 - [ ] Edit a puzzle; sort and filter the list
 - [ ] Playwright smoke tests against the deployed app
 - [ ] Mobile app: Expo / React Native in `apps/mobile`, reusing `packages/shared`

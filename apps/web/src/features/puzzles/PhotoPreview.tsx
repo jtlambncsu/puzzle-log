@@ -1,4 +1,5 @@
 import { useEffect, useRef } from 'react';
+import type { Rotation } from '@/lib/image';
 import { cn } from '@/lib/utils';
 
 /**
@@ -10,10 +11,13 @@ export function PhotoPreview({
   file,
   className,
   alt = 'Selected puzzle photo',
+  rotation = 0,
 }: {
   file: File;
   className?: string;
   alt?: string;
+  /** Preview-only rotation (CSS). The pixels are rotated when the photo is uploaded. */
+  rotation?: Rotation;
 }) {
   const imgRef = useRef<HTMLImageElement>(null);
   useEffect(() => {
@@ -26,6 +30,7 @@ export function PhotoPreview({
       ref={imgRef}
       alt={alt}
       className={cn('aspect-square w-full rounded-xl bg-muted object-cover', className)}
+      style={{ transform: `rotate(${rotation}deg)` }}
     />
   );
 }

@@ -7,6 +7,7 @@ import {
   CircleCheckIcon,
   ImagePlusIcon,
   Loader2Icon,
+  RotateCwIcon,
   Trash2Icon,
 } from 'lucide-react';
 import { puzzleKeys, savePuzzle, useApi } from '@/api/queries';
@@ -14,6 +15,7 @@ import { Button } from '@/components/ui/button';
 import { Card } from '@/components/ui/card';
 import { Field, FieldDescription, FieldError, FieldLabel } from '@/components/ui/field';
 import { Input } from '@/components/ui/input';
+import { nextRotation, type Rotation } from '@/lib/image';
 import { mapWithConcurrency } from '@/lib/mapWithConcurrency';
 import { readPhotoDate } from '@/lib/photoDate';
 import {
@@ -64,6 +66,8 @@ export function BulkAddForm({ onDone }: { onDone: (result: BulkSaveResult) => vo
 
   const [statuses, setStatuses] = useState<Record<string, RowStatus>>({});
   const [photoDates, setPhotoDates] = useState<Set<File>>(new Set());
+  // Keyed by row id, like statuses. Applied to the pixels when each photo is uploaded.
+  const [rotations, setRotations] = useState<Record<string, Rotation>>({});
   const isSaved = (id: string) => statuses[id]?.state === 'saved';
 
   function setStatus(id: string, status: RowStatus) {
@@ -97,7 +101,11 @@ export function BulkAddForm({ onDone }: { onDone: (result: BulkSaveResult) => vo
     await mapWithConcurrency(toSave, CONCURRENT_SAVES, async ({ id, item }) => {
       setStatus(id, { state: 'saving' });
       try {
-        await savePuzzle(api, { input: bulkItemToInput(item), photo: item.photo });
+        await savePuzzle(api, {
+          input: bulkItemToInput(item),
+          photo: item.photo,
+          rotation: rotations[id],
+        });
         saved++;
         setStatus(id, { state: 'saved' });
       } catch (error) {
@@ -157,18 +165,35 @@ export function BulkAddForm({ onDone }: { onDone: (result: BulkSaveResult) => vo
                   <PhotoPreview
                     file={photo}
                     alt={`Puzzle ${label}`}
+                    rotation={rotations[field.id]}
                     className="size-16 rounded-lg"
                   />
                   {!locked && (
-                    <Button
-                      type="button"
-                      variant="ghost"
-                      size="icon-sm"
-                      onClick={() => remove(index)}
-                      aria-label={`Remove ${label}`}
-                    >
-                      <Trash2Icon />
-                    </Button>
+                    <div className="flex">
+                      <Button
+                        type="button"
+                        variant="ghost"
+                        size="icon-sm"
+                        onClick={() =>
+                          setRotations((current) => ({
+                            ...current,
+                            [field.id]: nextRotation(current[field.id] ?? 0),
+                          }))
+                        }
+                        aria-label={`Rotate ${label}`}
+                      >
+                        <RotateCwIcon />
+                      </Button>
+                      <Button
+                        type="button"
+                        variant="ghost"
+                        size="icon-sm"
+                        onClick={() => remove(index)}
+                        aria-label={`Remove ${label}`}
+                      >
+                        <Trash2Icon />
+                      </Button>
+                    </div>
                   )}
                 </div>
                 <fieldset disabled={locked} className="min-w-0 flex-1 space-y-2">

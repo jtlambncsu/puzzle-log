@@ -5,6 +5,8 @@ export interface PhotoStorage {
   createUpload(userId: string, contentType: string): Promise<UploadTarget>;
   /** Short-lived URL for viewing a stored photo. */
   getViewUrl(key: string): Promise<string>;
+  /** Deletes a stored photo. Deleting a missing key is not an error. */
+  delete(key: string): Promise<void>;
 }
 
 /** Photos are stored under `uploads/<userId>/`, so ownership can be checked from the key. */

@@ -1,7 +1,7 @@
 import { QueryClient, queryOptions, useMutation, useQueryClient } from '@tanstack/react-query';
 import { useRouteContext } from '@tanstack/react-router';
-import type { CreatePuzzleInput } from '@puzzle-log/shared';
-import { compressImage } from '@/lib/image';
+import type { CreatePuzzleInput, Puzzle } from '@puzzle-log/shared';
+import { compressImage, type Rotation } from '@/lib/image';
 import { ApiError, uploadPhoto, type PuzzlesApi } from './client';
 
 /**
@@ -51,6 +51,15 @@ export function createQueryClient() {
 export interface CreatePuzzleVariables {
   input: CreatePuzzleInput;
   photo?: File;
+  rotation?: Rotation;
+}
+
+/** Shrinks (and rotates) a photo and uploads it to S3, returning its key. */
+async function uploadPreparedPhoto(api: PuzzlesApi, photo: Blob, rotation: Rotation = 0) {
+  const prepared = await compressImage(photo, { rotation });
+  const target = await api.createUpload(prepared.type);
+  await uploadPhoto(target, prepared);
+  return target.key;
 }
 
 /**
@@ -58,14 +67,11 @@ export interface CreatePuzzleVariables {
  * API for a presigned upload, 3. upload straight to S3, 4. save the puzzle with that key.
  * Plain async function (no cache updates) so single and bulk adds can share it.
  */
-export async function savePuzzle(api: PuzzlesApi, { input, photo }: CreatePuzzleVariables) {
-  let imageKey: string | undefined;
-  if (photo) {
-    const compressed = await compressImage(photo);
-    const target = await api.createUpload(compressed.type);
-    await uploadPhoto(target, compressed);
-    imageKey = target.key;
-  }
+export async function savePuzzle(
+  api: PuzzlesApi,
+  { input, photo, rotation }: CreatePuzzleVariables,
+) {
+  const imageKey = photo ? await uploadPreparedPhoto(api, photo, rotation) : undefined;
   return api.create({ ...input, imageKey });
 }
 
@@ -76,6 +82,29 @@ export function useCreatePuzzle() {
   return useMutation({
     mutationFn: (variables: CreatePuzzleVariables) => savePuzzle(api, variables),
     onSuccess: () => queryClient.invalidateQueries({ queryKey: puzzleKeys.all }),
+  });
+}
+
+/**
+ * Rotates an already-saved photo: download it, rotate the pixels in the browser, upload the
+ * result as a new photo, and point the puzzle at it (the API deletes the old one).
+ */
+export function useRotatePuzzlePhoto() {
+  const api = useApi();
+  const queryClient = useQueryClient();
+
+  return useMutation({
+    mutationFn: async ({ puzzle, rotation }: { puzzle: Puzzle; rotation: Rotation }) => {
+      if (!puzzle.imageUrl) throw new Error('This puzzle has no photo');
+      const res = await fetch(puzzle.imageUrl); // signed S3 URL; needs the bucket's CORS GET
+      if (!res.ok) throw new ApiError(res.status, 'Could not load the photo');
+      const imageKey = await uploadPreparedPhoto(api, await res.blob(), rotation);
+      return api.update(puzzle.id, { imageKey });
+    },
+    onSuccess: (updated) => {
+      queryClient.setQueryData(puzzleKeys.detail(updated.id), updated);
+      return queryClient.invalidateQueries({ queryKey: puzzleKeys.list() });
+    },
   });
 }
 

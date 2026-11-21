@@ -6,8 +6,9 @@ import {
   GetCommand,
   PutCommand,
   QueryCommand,
+  UpdateCommand,
 } from '@aws-sdk/lib-dynamodb';
-import { DynamoDBClient } from '@aws-sdk/client-dynamodb';
+import { ConditionalCheckFailedException, DynamoDBClient } from '@aws-sdk/client-dynamodb';
 import { DynamoPuzzleStore } from './dynamo.js';
 
 const client = DynamoDBDocumentClient.from(new DynamoDBClient({ region: 'us-east-1' }));
@@ -55,14 +56,35 @@ describe('DynamoPuzzleStore', () => {
     expect(call?.args[0].input).toMatchObject({ TableName: 'Puzzles', Item: puzzle });
   });
 
-  it('reports whether a delete removed anything', async () => {
+  it('updates only the given fields of an existing item', async () => {
+    dynamo.on(UpdateCommand).resolves({ Attributes: { id: 'p1', title: 'New' } });
+
+    const updated = await store.update('u1', 'p1', { title: 'New', imageKey: 'uploads/u1/k' });
+
+    expect(updated).toMatchObject({ title: 'New' });
+    expect(dynamo.commandCalls(UpdateCommand)[0]?.args[0].input).toMatchObject({
+      Key: { userId: 'u1', id: 'p1' },
+      UpdateExpression: 'SET #title = :title, #imageKey = :imageKey',
+      ExpressionAttributeValues: { ':title': 'New', ':imageKey': 'uploads/u1/k' },
+      ConditionExpression: 'attribute_exists(id)',
+    });
+  });
+
+  it("returns undefined when updating an item that doesn't exist", async () => {
+    dynamo
+      .on(UpdateCommand)
+      .rejects(new ConditionalCheckFailedException({ message: 'nope', $metadata: {} }));
+    expect(await store.update('u1', 'missing', { title: 'x' })).toBeUndefined();
+  });
+
+  it('returns what a delete removed', async () => {
     dynamo
       .on(DeleteCommand)
       .resolvesOnce({ Attributes: { id: 'a' } })
       .resolvesOnce({});
 
-    expect(await store.delete('u1', 'a')).toBe(true);
-    expect(await store.delete('u1', 'missing')).toBe(false);
+    expect(await store.delete('u1', 'a')).toMatchObject({ id: 'a' });
+    expect(await store.delete('u1', 'missing')).toBeUndefined();
     expect(dynamo.commandCalls(DeleteCommand)[0]?.args[0].input.Key).toEqual({
       userId: 'u1',
       id: 'a',

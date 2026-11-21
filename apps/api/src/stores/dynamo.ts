@@ -1,13 +1,14 @@
 import { randomUUID } from 'node:crypto';
-import { DynamoDBClient } from '@aws-sdk/client-dynamodb';
+import { ConditionalCheckFailedException, DynamoDBClient } from '@aws-sdk/client-dynamodb';
 import {
   DeleteCommand,
   DynamoDBDocumentClient,
   GetCommand,
   PutCommand,
   QueryCommand,
+  UpdateCommand,
 } from '@aws-sdk/lib-dynamodb';
-import type { CreatePuzzleInput, Puzzle } from '@puzzle-log/shared';
+import type { CreatePuzzleInput, Puzzle, UpdatePuzzleInput } from '@puzzle-log/shared';
 import { newestFirst, newPuzzle, type PuzzleStore } from './types.js';
 
 /**
@@ -59,6 +60,32 @@ export class DynamoPuzzleStore implements PuzzleStore {
     return puzzle;
   }
 
+  async update(userId: string, id: string, patch: UpdatePuzzleInput) {
+    // Build "SET #title = :title, ..." from the patch. Names and values go through
+    // placeholders, so field names that are reserved words in DynamoDB are safe.
+    const entries = Object.entries(patch).filter(([, value]) => value !== undefined);
+    try {
+      const { Attributes } = await this.client.send(
+        new UpdateCommand({
+          TableName: this.tableName,
+          Key: { userId, id },
+          UpdateExpression: `SET ${entries.map(([name]) => `#${name} = :${name}`).join(', ')}`,
+          ExpressionAttributeNames: Object.fromEntries(entries.map(([name]) => [`#${name}`, name])),
+          ExpressionAttributeValues: Object.fromEntries(
+            entries.map(([name, value]) => [`:${name}`, value]),
+          ),
+          // Without this, UpdateItem would create a new item for an unknown id.
+          ConditionExpression: 'attribute_exists(id)',
+          ReturnValues: 'ALL_NEW',
+        }),
+      );
+      return Attributes as Puzzle;
+    } catch (error) {
+      if (error instanceof ConditionalCheckFailedException) return undefined;
+      throw error;
+    }
+  }
+
   async delete(userId: string, id: string) {
     const { Attributes } = await this.client.send(
       new DeleteCommand({
@@ -67,6 +94,6 @@ export class DynamoPuzzleStore implements PuzzleStore {
         ReturnValues: 'ALL_OLD',
       }),
     );
-    return Attributes !== undefined;
+    return Attributes as Puzzle | undefined;
   }
 }

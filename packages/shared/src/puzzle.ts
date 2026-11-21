@@ -19,6 +19,16 @@ export const createPuzzleSchema = z.object({
 
 export type CreatePuzzleInput = z.infer<typeof createPuzzleSchema>;
 
+/**
+ * Fields to change on an existing puzzle (`PATCH /api/puzzles/:id`). Omitted fields are left
+ * as they are. At least one field is required.
+ */
+export const updatePuzzleSchema = createPuzzleSchema
+  .partial()
+  .refine((patch) => Object.keys(patch).length > 0, 'Nothing to update');
+
+export type UpdatePuzzleInput = z.infer<typeof updatePuzzleSchema>;
+
 export interface Puzzle extends CreatePuzzleInput {
   id: string;
   /** The Cognito user (`sub`) who owns this puzzle. */

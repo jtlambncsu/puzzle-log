@@ -54,9 +54,14 @@ export class ApiStack extends Stack {
       encryption: BucketEncryption.S3_MANAGED,
       enforceSSL: true,
       removalPolicy: RemovalPolicy.RETAIN,
-      // Browsers upload with a presigned POST, which needs CORS. Native mobile apps don't.
+      // Browsers upload with a presigned POST, and download photos with fetch() to edit them
+      // (e.g. rotate), both of which need CORS. <img> tags and native mobile apps don't.
       cors: [
-        { allowedMethods: [HttpMethods.POST], allowedOrigins: origins, allowedHeaders: ['*'] },
+        {
+          allowedMethods: [HttpMethods.POST, HttpMethods.GET],
+          allowedOrigins: origins,
+          allowedHeaders: ['*'],
+        },
       ],
     });
 
@@ -90,6 +95,7 @@ export class ApiStack extends Stack {
     table.grantReadWriteData(fn);
     photos.grantPut(fn); // signing a presigned POST requires the signer to be allowed to PUT
     photos.grantRead(fn);
+    photos.grantDelete(fn); // remove replaced and deleted puzzles' photos
 
     const integration = new HttpLambdaIntegration('ApiIntegration', fn);
 

@@ -1,4 +1,4 @@
-import { describe, expect, it } from 'vitest';
+import { describe, expect, it, vi } from 'vitest';
 import request from 'supertest';
 import { createApp, type AppDeps } from './app.js';
 import type { ResolveUser } from './auth.js';
@@ -13,6 +13,18 @@ function testApp(deps: Partial<AppDeps> = {}) {
 
 const alice = { 'x-test-user': 'alice' };
 const bob = { 'x-test-user': 'bob' };
+
+function fakePhotos(): PhotoStorage & { delete: ReturnType<typeof vi.fn> } {
+  return {
+    createUpload: async (userId) => ({
+      key: `uploads/${userId}/abc`,
+      url: 'https://bucket.example',
+      fields: {},
+    }),
+    getViewUrl: async (key) => `https://bucket.example/${key}?signed`,
+    delete: vi.fn(async () => {}),
+  };
+}
 
 describe('API', () => {
   it('reports health without signing in', async () => {
@@ -80,14 +92,7 @@ describe('API', () => {
 });
 
 describe('photo uploads', () => {
-  const photos: PhotoStorage = {
-    createUpload: async (userId) => ({
-      key: `uploads/${userId}/abc`,
-      url: 'https://bucket.example',
-      fields: {},
-    }),
-    getViewUrl: async (key) => `https://bucket.example/${key}?signed`,
-  };
+  const photos = fakePhotos();
 
   it('returns 501 when uploads are not configured', async () => {
     const res = await request(testApp())
@@ -136,5 +141,88 @@ describe('photo uploads', () => {
       .set(alice)
       .send({ title: 'Sneaky', imageKey: '../secrets' });
     expect(res.status).toBe(400);
+  });
+});
+
+describe('updating puzzles', () => {
+  async function createPuzzle(app: ReturnType<typeof testApp>, body: object) {
+    return (await request(app).post('/api/puzzles').set(alice).send(body)).body;
+  }
+
+  it('changes only the given fields', async () => {
+    const app = testApp();
+    const puzzle = await createPuzzle(app, { title: 'Starry Night', pieceCount: 1000 });
+
+    const res = await request(app)
+      .patch(`/api/puzzles/${puzzle.id}`)
+      .set(alice)
+      .send({ title: 'The Starry Night' });
+
+    expect(res.status).toBe(200);
+    expect(res.body).toMatchObject({ title: 'The Starry Night', pieceCount: 1000 });
+  });
+
+  it("can't update another user's puzzle", async () => {
+    const app = testApp();
+    const puzzle = await createPuzzle(app, { title: 'Mine' });
+
+    const res = await request(app).patch(`/api/puzzles/${puzzle.id}`).set(bob).send({ title: 'x' });
+    expect(res.status).toBe(404);
+  });
+
+  it('rejects empty or invalid updates', async () => {
+    const app = testApp();
+    const puzzle = await createPuzzle(app, { title: 'Mine' });
+
+    expect((await request(app).patch(`/api/puzzles/${puzzle.id}`).set(alice).send({})).status).toBe(
+      400,
+    );
+    expect(
+      (await request(app).patch(`/api/puzzles/${puzzle.id}`).set(alice).send({ title: '' })).status,
+    ).toBe(400);
+  });
+
+  it('deletes the old photo when the photo is replaced', async () => {
+    const photos = fakePhotos();
+    const app = testApp({ photos });
+    const puzzle = await createPuzzle(app, { title: 'Rotated', imageKey: 'uploads/alice/old' });
+
+    const res = await request(app)
+      .patch(`/api/puzzles/${puzzle.id}`)
+      .set(alice)
+      .send({ imageKey: 'uploads/alice/new' });
+
+    expect(res.body.imageUrl).toBe('https://bucket.example/uploads/alice/new?signed');
+    expect(photos.delete).toHaveBeenCalledWith('uploads/alice/old');
+  });
+
+  it("rejects another user's photo key", async () => {
+    const app = testApp({ photos: fakePhotos() });
+    const puzzle = await createPuzzle(app, { title: 'Mine' });
+
+    const res = await request(app)
+      .patch(`/api/puzzles/${puzzle.id}`)
+      .set(alice)
+      .send({ imageKey: 'uploads/bob/theirs' });
+    expect(res.status).toBe(400);
+  });
+
+  it("deletes a puzzle's photo along with it", async () => {
+    const photos = fakePhotos();
+    const app = testApp({ photos });
+    const puzzle = await createPuzzle(app, { title: 'Gone', imageKey: 'uploads/alice/photo' });
+
+    expect((await request(app).delete(`/api/puzzles/${puzzle.id}`).set(alice)).status).toBe(204);
+    expect(photos.delete).toHaveBeenCalledWith('uploads/alice/photo');
+  });
+
+  it('still succeeds if deleting the old photo fails', async () => {
+    const photos = fakePhotos();
+    photos.delete.mockRejectedValue(new Error('S3 is down'));
+    vi.spyOn(console, 'error').mockImplementation(() => {});
+    const app = testApp({ photos });
+    const puzzle = await createPuzzle(app, { title: 'x', imageKey: 'uploads/alice/photo' });
+
+    expect((await request(app).delete(`/api/puzzles/${puzzle.id}`).set(alice)).status).toBe(204);
   });
 });
