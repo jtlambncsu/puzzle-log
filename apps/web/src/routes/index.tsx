@@ -1,6 +1,6 @@
 import { createFileRoute, Link } from '@tanstack/react-router';
 import { useSuspenseQuery } from '@tanstack/react-query';
-import { PlusIcon, PuzzleIcon } from 'lucide-react';
+import { ImagesIcon, PlusIcon, PuzzleIcon } from 'lucide-react';
 import { puzzlesQueryOptions, useApi } from '@/api/queries';
 import { Button } from '@/components/ui/button';
 import { PuzzleCard } from '@/features/puzzles/PuzzleCard';
@@ -26,12 +26,20 @@ function PuzzleListPage() {
           <h1 className="font-heading text-xl font-semibold">No puzzles yet</h1>
           <p className="text-muted-foreground">Finished one? Snap a photo and log it.</p>
         </div>
-        <Button asChild>
-          <Link to="/puzzles/new">
-            <PlusIcon aria-hidden />
-            Add your first puzzle
-          </Link>
-        </Button>
+        <div className="flex flex-wrap justify-center gap-2">
+          <Button asChild>
+            <Link to="/puzzles/new">
+              <PlusIcon aria-hidden />
+              Add your first puzzle
+            </Link>
+          </Button>
+          <Button asChild variant="outline">
+            <Link to="/puzzles/bulk">
+              <ImagesIcon aria-hidden />
+              Add several from photos
+            </Link>
+          </Button>
+        </div>
       </div>
     );
   }

@@ -53,23 +53,28 @@ export interface CreatePuzzleVariables {
   photo?: File;
 }
 
+/**
+ * Saves one puzzle, uploading its photo first: 1. shrink the photo in the browser, 2. ask our
+ * API for a presigned upload, 3. upload straight to S3, 4. save the puzzle with that key.
+ * Plain async function (no cache updates) so single and bulk adds can share it.
+ */
+export async function savePuzzle(api: PuzzlesApi, { input, photo }: CreatePuzzleVariables) {
+  let imageKey: string | undefined;
+  if (photo) {
+    const compressed = await compressImage(photo);
+    const target = await api.createUpload(compressed.type);
+    await uploadPhoto(target, compressed);
+    imageKey = target.key;
+  }
+  return api.create({ ...input, imageKey });
+}
+
 export function useCreatePuzzle() {
   const api = useApi();
   const queryClient = useQueryClient();
 
   return useMutation({
-    mutationFn: async ({ input, photo }: CreatePuzzleVariables) => {
-      let imageKey: string | undefined;
-      if (photo) {
-        // 1. shrink the photo in the browser, 2. ask our API for a presigned upload,
-        // 3. upload straight to S3, 4. save the puzzle pointing at the uploaded key.
-        const compressed = await compressImage(photo);
-        const target = await api.createUpload(compressed.type);
-        await uploadPhoto(target, compressed);
-        imageKey = target.key;
-      }
-      return api.create({ ...input, imageKey });
-    },
+    mutationFn: (variables: CreatePuzzleVariables) => savePuzzle(api, variables),
     onSuccess: () => queryClient.invalidateQueries({ queryKey: puzzleKeys.all }),
   });
 }

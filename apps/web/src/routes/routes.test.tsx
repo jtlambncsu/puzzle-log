@@ -169,6 +169,91 @@ describe('date from photo', () => {
   });
 });
 
+describe('bulk add', () => {
+  async function pickPhotos(user: ReturnType<typeof userEvent.setup>) {
+    await user.upload(await screen.findByLabelText('Choose photos'), [
+      fixturePhoto('photo-taken-2026-11-14.jpg'),
+      fixturePhoto('photo-no-exif.jpg'),
+    ]);
+  }
+
+  it('saves a puzzle per photo, with dates from the photos', async () => {
+    const user = userEvent.setup();
+    const { router } = renderApp('/puzzles/bulk');
+
+    await pickPhotos(user);
+    await waitFor(() =>
+      expect(screen.getByLabelText('Finished on for photo 1')).toHaveValue('2026-11-14'),
+    );
+    expect(screen.getByLabelText('Finished on for photo 2')).toHaveValue('');
+    expect(screen.getByText('From photo')).toBeInTheDocument();
+
+    // Titles are required.
+    await user.click(screen.getByRole('button', { name: 'Save 2 puzzles' }));
+    expect(await screen.findAllByText('Title is required')).toHaveLength(2);
+
+    await user.type(screen.getByLabelText('Title for photo 1'), 'Starry Night');
+    await user.type(screen.getByLabelText('Title for photo 2'), 'Cat Café');
+    await user.type(screen.getByLabelText('Pieces for photo 2'), '300');
+    await user.click(screen.getByRole('button', { name: 'Save 2 puzzles' }));
+
+    await waitFor(() => expect(router.state.location.pathname).toBe('/'));
+    const saved = [...db.puzzles.values()];
+    expect(saved).toHaveLength(2);
+    expect(saved.find((p) => p.title === 'Starry Night')?.completedAt).toBe('2026-11-14');
+    expect(saved.find((p) => p.title === 'Cat Café')?.pieceCount).toBe(300);
+    expect(db.uploads).toHaveLength(2);
+    expect(await screen.findByText('Starry Night')).toBeInTheDocument();
+  });
+
+  it('keeps failed rows to retry, without duplicating saved ones', async () => {
+    let failCatCafe = true;
+    server.use(
+      http.post('/api/puzzles', async ({ request }) => {
+        const body = (await request.clone().json()) as { title: string };
+        if (failCatCafe && body.title === 'Cat Café') {
+          return HttpResponse.json({}, { status: 500 });
+        }
+        return undefined; // fall through to the default handler
+      }),
+    );
+    const user = userEvent.setup();
+    const { router } = renderApp('/puzzles/bulk');
+
+    await pickPhotos(user);
+    await user.type(await screen.findByLabelText('Title for photo 1'), 'Starry Night');
+    await user.type(screen.getByLabelText('Title for photo 2'), 'Cat Café');
+    await user.click(screen.getByRole('button', { name: 'Save 2 puzzles' }));
+
+    const puzzle2 = screen.getByRole('group', { name: 'Puzzle 2' });
+    expect(await within(puzzle2).findByRole('alert')).toHaveTextContent('Request failed: 500');
+    const puzzle1 = screen.getByRole('group', { name: 'Puzzle 1' });
+    expect(within(puzzle1).getByText('Saved')).toBeInTheDocument();
+    expect(router.state.location.pathname).toBe('/puzzles/bulk');
+    expect(db.puzzles.size).toBe(1);
+
+    failCatCafe = false;
+    await user.click(screen.getByRole('button', { name: 'Save 1 puzzle' }));
+
+    await waitFor(() => expect(router.state.location.pathname).toBe('/'));
+    expect([...db.puzzles.values()].map((p) => p.title).sort()).toEqual([
+      'Cat Café',
+      'Starry Night',
+    ]);
+  });
+
+  it('lets you remove a photo before saving', async () => {
+    const user = userEvent.setup();
+    renderApp('/puzzles/bulk');
+
+    await pickPhotos(user);
+    await user.click(await screen.findByRole('button', { name: 'Remove photo 1' }));
+
+    expect(screen.getAllByRole('group', { name: /^Puzzle \d/ })).toHaveLength(1);
+    expect(screen.getByRole('button', { name: 'Save 1 puzzle' })).toBeInTheDocument();
+  });
+});
+
 describe('puzzle detail', () => {
   it('shows the puzzle and deletes it after confirming', async () => {
     const puzzle = db.add({ title: 'Starry Night', notes: 'Sky was hard' });

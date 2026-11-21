@@ -15,6 +15,19 @@ export class ApiError extends Error {
   }
 }
 
+function messageForStatus(status: number) {
+  switch (status) {
+    case 401:
+      return 'Your session has expired. Sign in again.';
+    case 404:
+      return 'Not found';
+    case 501:
+      return "Photo uploads aren't set up on this server"; // local dev has no S3
+    default:
+      return `Request failed: ${status}`;
+  }
+}
+
 /** Returns the current access token, or undefined when auth is off (local dev). */
 export type GetAccessToken = () => Promise<string | undefined>;
 
@@ -34,14 +47,7 @@ export function createPuzzlesApi(getAccessToken: GetAccessToken) {
       },
     });
     if (!res.ok) {
-      throw new ApiError(
-        res.status,
-        res.status === 401
-          ? 'Your session has expired. Sign in again.'
-          : res.status === 404
-            ? 'Not found'
-            : `Request failed: ${res.status}`,
-      );
+      throw new ApiError(res.status, messageForStatus(res.status));
     }
     return res.status === 204 ? (undefined as T) : res.json();
   }

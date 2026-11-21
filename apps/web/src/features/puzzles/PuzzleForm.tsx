@@ -1,4 +1,4 @@
-import { useEffect, useId, useRef, useState } from 'react';
+import { useId, useRef, useState } from 'react';
 import { useForm } from 'react-hook-form';
 import { zodResolver } from '@hookform/resolvers/zod';
 import { ImagePlusIcon, Loader2Icon, XIcon } from 'lucide-react';
@@ -8,6 +8,7 @@ import { Field, FieldDescription, FieldError, FieldGroup, FieldLabel } from '@/c
 import { Input } from '@/components/ui/input';
 import { Textarea } from '@/components/ui/textarea';
 import { readPhotoDate } from '@/lib/photoDate';
+import { PhotoPreview } from './PhotoPreview';
 import {
   emptyPuzzleForm,
   puzzleFormSchema,
@@ -207,26 +208,5 @@ function PhotoPicker({
       />
       {error && <FieldError>{error}</FieldError>}
     </Field>
-  );
-}
-
-/**
- * Previews a local file. The object URL is a browser resource that must be released, so it's
- * created and revoked in an effect and set on the <img> through a ref: no extra state or
- * re-render, and it stays correct when StrictMode runs effects twice in development.
- */
-function PhotoPreview({ file }: { file: File }) {
-  const imgRef = useRef<HTMLImageElement>(null);
-  useEffect(() => {
-    const url = URL.createObjectURL(file);
-    if (imgRef.current) imgRef.current.src = url;
-    return () => URL.revokeObjectURL(url);
-  }, [file]);
-  return (
-    <img
-      ref={imgRef}
-      alt="Selected puzzle photo"
-      className="aspect-square w-full rounded-xl bg-muted object-cover"
-    />
   );
 }

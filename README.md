@@ -99,6 +99,7 @@ The API goes to AWS (CDK, deployed by GitHub Actions) and the web app to Vercel.
 - [x] Monorepo, CI, AWS + Vercel deployment
 - [x] Login (Cognito) with per-user data
 - [x] Puzzle list, detail and delete; add-puzzle form with photo upload
+- [x] Dates from photo EXIF; bulk add from many photos
 - [ ] Edit a puzzle; sort and filter the list
 - [ ] Playwright smoke tests against the deployed app
 - [ ] Mobile app: Expo / React Native in `apps/mobile`, reusing `packages/shared`

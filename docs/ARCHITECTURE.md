@@ -62,6 +62,13 @@ Each significant choice has an [ADR](decisions/README.md) explaining why.
    to the user.
 7. The mutation invalidates the `['puzzles']` queries, and the app navigates to the list.
 
+### Adding several puzzles at once
+
+`/puzzles/bulk` turns each picked photo into a row (`useFieldArray`) with its EXIF date
+filled in. Saving runs the same steps as above for each row, three at a time, tracks a status
+per row, skips rows that already saved when retrying, and invalidates the cache once at the
+end. See [ADR 0016](decisions/0016-bulk-add.md).
+
 ## Local development
 
 `npm run dev` runs the API on :3001 (in-memory storage, no login, uploads off) and the web

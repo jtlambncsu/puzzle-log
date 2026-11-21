@@ -1,6 +1,8 @@
-import { createFileRoute, useNavigate } from '@tanstack/react-router';
+import { createFileRoute, Link, useNavigate } from '@tanstack/react-router';
+import { ImagesIcon } from 'lucide-react';
 import { toast } from 'sonner';
 import { useCreatePuzzle } from '@/api/queries';
+import { Button } from '@/components/ui/button';
 import { PuzzleForm } from '@/features/puzzles/PuzzleForm';
 
 export const Route = createFileRoute('/puzzles/new')({
@@ -13,7 +15,15 @@ function NewPuzzlePage() {
 
   return (
     <>
-      <h1 className="mb-4 font-heading text-xl font-semibold">Add a puzzle</h1>
+      <div className="mb-4 flex items-center justify-between gap-2">
+        <h1 className="font-heading text-xl font-semibold">Add a puzzle</h1>
+        <Button asChild variant="outline" size="sm">
+          <Link to="/puzzles/bulk">
+            <ImagesIcon aria-hidden />
+            Add several
+          </Link>
+        </Button>
+      </div>
       <PuzzleForm
         onSubmit={async (input, photo) => {
           try {
