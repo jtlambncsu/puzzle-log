@@ -265,3 +265,141 @@ describe('updating puzzles', () => {
     expect((await request(app).delete(`/api/puzzles/${puzzle.id}`).set(alice)).status).toBe(204);
   });
 });
+
+describe('puzzle timer', () => {
+  /** A clock the test moves forward by hand. */
+  function timerApp() {
+    let now = new Date('2026-11-21T18:00:00.000Z');
+    const app = testApp({ clock: () => now });
+    return {
+      app,
+      advance: (minutes: number) => (now = new Date(now.getTime() + minutes * 60_000)),
+    };
+  }
+
+  async function createOwned(app: ReturnType<typeof testApp>) {
+    const res = await request(app)
+      .post('/api/puzzles')
+      .set(alice)
+      .send({ title: 'Big Ben', status: 'owned' });
+    return res.body.id as string;
+  }
+
+  it('starts: records the start, moves the puzzle to in progress, and sets the start date', async () => {
+    const { app } = timerApp();
+    const id = await createOwned(app);
+
+    const res = await request(app)
+      .post(`/api/puzzles/${id}/timer/start`)
+      .set(alice)
+      .send({ today: '2026-11-21' });
+
+    expect(res.status).toBe(200);
+    expect(res.body).toMatchObject({
+      status: 'in_progress',
+      startedAt: '2026-11-21',
+      timerStartedAt: '2026-11-21T18:00:00.000Z',
+    });
+  });
+
+  it('stops: saves the session, and pressing either button twice is harmless', async () => {
+    const { app, advance } = timerApp();
+    const id = await createOwned(app);
+    const start = () =>
+      request(app).post(`/api/puzzles/${id}/timer/start`).set(alice).send({ today: '2026-11-21' });
+    const stop = () => request(app).post(`/api/puzzles/${id}/timer/stop`).set(alice);
+
+    await start();
+    advance(30);
+    await start(); // already running: keeps the original start
+    advance(15);
+    const stopped = await stop();
+    advance(5);
+    const again = await stop();
+
+    expect(stopped.body.timerStartedAt).toBeUndefined();
+    expect(stopped.body.sessions).toEqual([
+      { start: '2026-11-21T18:00:00.000Z', end: '2026-11-21T18:45:00.000Z' },
+    ]);
+    expect(again.body.sessions).toHaveLength(1);
+  });
+
+  it('keeps the first start date when the timer is started again', async () => {
+    const { app, advance } = timerApp();
+    const id = await createOwned(app);
+    await request(app)
+      .post(`/api/puzzles/${id}/timer/start`)
+      .set(alice)
+      .send({ today: '2026-11-21' });
+    advance(60);
+    await request(app).post(`/api/puzzles/${id}/timer/stop`).set(alice);
+    advance(60 * 24);
+
+    const res = await request(app)
+      .post(`/api/puzzles/${id}/timer/start`)
+      .set(alice)
+      .send({ today: '2026-11-22' });
+
+    expect(res.body.startedAt).toBe('2026-11-21');
+  });
+
+  it('stops the timer when the puzzle is marked done', async () => {
+    const { app, advance } = timerApp();
+    const id = await createOwned(app);
+    await request(app)
+      .post(`/api/puzzles/${id}/timer/start`)
+      .set(alice)
+      .send({ today: '2026-11-21' });
+    advance(90);
+
+    const res = await request(app)
+      .patch(`/api/puzzles/${id}`)
+      .set(alice)
+      .send({ status: 'done', completedAt: '2026-11-21' });
+
+    expect(res.body).toMatchObject({
+      status: 'done',
+      sessions: [{ end: '2026-11-21T19:30:00.000Z' }],
+    });
+    expect(res.body.timerStartedAt).toBeUndefined();
+  });
+
+  it("can't be set directly, needs a valid date, and is private to its owner", async () => {
+    const { app } = timerApp();
+    const id = await createOwned(app);
+
+    const patched = await request(app)
+      .patch(`/api/puzzles/${id}`)
+      .set(alice)
+      .send({ notes: 'hi', timerStartedAt: '2026-01-01T00:00:00.000Z' });
+    expect(patched.body.timerStartedAt).toBeUndefined();
+
+    expect(
+      (await request(app).post(`/api/puzzles/${id}/timer/start`).set(alice).send({})).status,
+    ).toBe(400);
+    expect(
+      (
+        await request(app)
+          .post(`/api/puzzles/${id}/timer/start`)
+          .set(bob)
+          .send({ today: '2026-11-21' })
+      ).status,
+    ).toBe(404);
+    expect((await request(app).post(`/api/puzzles/${id}/timer/stop`).set(bob)).status).toBe(404);
+  });
+
+  it('lets sessions be corrected, but only with valid times', async () => {
+    const { app } = timerApp();
+    const id = await createOwned(app);
+    const sessions = [{ start: '2026-11-20T10:00:00Z', end: '2026-11-20T11:00:00Z' }];
+
+    const ok = await request(app).patch(`/api/puzzles/${id}`).set(alice).send({ sessions });
+    const backwards = await request(app)
+      .patch(`/api/puzzles/${id}`)
+      .set(alice)
+      .send({ sessions: [{ start: sessions[0]!.end, end: sessions[0]!.start }] });
+
+    expect(ok.body.sessions).toEqual(sessions);
+    expect(backwards.status).toBe(400);
+  });
+});

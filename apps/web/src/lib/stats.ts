@@ -1,4 +1,10 @@
-import { puzzleStatus, type Puzzle, type PuzzleStatus } from '@puzzle-log/shared';
+import {
+  piecesPerHour,
+  puzzleStatus,
+  totalTimeMs,
+  type Puzzle,
+  type PuzzleStatus,
+} from '@puzzle-log/shared';
 import { tagCounts } from './search';
 
 export interface YearCount {
@@ -20,13 +26,25 @@ export interface PuzzleStats {
   perYear: YearCount[];
   /** Finished puzzles without a finished date (not in `perYear`). */
   undated: number;
+  /** Time on every puzzle's timer, finished or not (running timers count up to `now`). */
+  timeSpentMs: number;
+  /**
+   * Pieces an hour across finished puzzles that were timed and have a piece count: their
+   * pieces over their time, so a big puzzle counts for more than a small one.
+   */
+  piecesPerHour?: number;
   topBrands: RankedCount[];
   topTags: RankedCount[];
 }
 
 /** Everything the stats page shows, from the puzzle list. Only finished puzzles count. */
 export function puzzleStats(puzzles: readonly Puzzle[], now = new Date(), top = 8): PuzzleStats {
-  const statusCounts: Record<PuzzleStatus, number> = { done: 0, owned: 0, wishlist: 0 };
+  const statusCounts: Record<PuzzleStatus, number> = {
+    done: 0,
+    in_progress: 0,
+    owned: 0,
+    wishlist: 0,
+  };
   for (const puzzle of puzzles) statusCounts[puzzleStatus(puzzle)]++;
 
   const done = puzzles.filter((puzzle) => puzzleStatus(puzzle) === 'done');
@@ -55,8 +73,17 @@ export function puzzleStats(puzzles: readonly Puzzle[], now = new Date(), top = 
     brands.set(key, entry);
   }
 
+  const timed = done
+    .map((puzzle) => ({ pieces: puzzle.pieceCount ?? 0, ms: totalTimeMs(puzzle, now.getTime()) }))
+    .filter(({ pieces, ms }) => pieces > 0 && ms > 0);
+
   return {
     statusCounts,
+    timeSpentMs: puzzles.reduce((sum, puzzle) => sum + totalTimeMs(puzzle, now.getTime()), 0),
+    piecesPerHour: piecesPerHour(
+      timed.reduce((sum, { pieces }) => sum + pieces, 0),
+      timed.reduce((sum, { ms }) => sum + ms, 0),
+    ),
     piecesPlaced: done.reduce((sum, puzzle) => sum + (puzzle.pieceCount ?? 0), 0),
     doneThisYear: byYear.get(thisYear) ?? 0,
     perYear,

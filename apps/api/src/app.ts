@@ -22,6 +22,8 @@ export interface AppDeps {
   /** Barcode → product lookups. Defaults to UPCitemdb with an in-memory cache. */
   productLookup?: ProductLookup;
   barcodeCache?: BarcodeCache;
+  /** The time, for the puzzle timer. Tests pass a fixed clock. */
+  clock?: () => Date;
 }
 
 export function createApp({
@@ -31,6 +33,7 @@ export function createApp({
   allowedOrigins,
   productLookup = new UpcItemDbLookup(),
   barcodeCache = new InMemoryBarcodeCache(),
+  clock = () => new Date(),
 }: AppDeps) {
   const app = express();
 
@@ -44,7 +47,7 @@ export function createApp({
 
   // Everything below needs a signed-in user. In AWS, API Gateway also rejects requests
   // without a valid token before they reach Lambda; this is a second line of defense.
-  app.use('/api/puzzles', requireUser(resolveUser), puzzlesRouter(store, photos));
+  app.use('/api/puzzles', requireUser(resolveUser), puzzlesRouter(store, photos, clock));
   app.use('/api/uploads', requireUser(resolveUser), uploadsRouter(photos));
   app.use('/api/barcodes', requireUser(resolveUser), barcodesRouter(productLookup, barcodeCache));
 

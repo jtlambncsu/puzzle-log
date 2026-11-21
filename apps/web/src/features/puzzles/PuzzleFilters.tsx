@@ -34,7 +34,7 @@ export function PuzzleFilters({
   onStatusChange,
 }: PuzzleFiltersProps) {
   // Only worth showing once something isn't "done".
-  const showStatuses = statusCounts.owned + statusCounts.wishlist > 0;
+  const showStatuses = statusCounts.in_progress + statusCounts.owned + statusCounts.wishlist > 0;
   return (
     <div className="space-y-3">
       <div className="relative">

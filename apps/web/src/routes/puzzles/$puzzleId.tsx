@@ -19,6 +19,7 @@ import { Badge } from '@/components/ui/badge';
 import { Button } from '@/components/ui/button';
 import { Skeleton } from '@/components/ui/skeleton';
 import { formatDate, puzzleSubtitle } from '@/features/puzzles/format';
+import { PuzzleTimer } from '@/features/puzzles/PuzzleTimer';
 import { RotatablePhoto } from '@/features/puzzles/RotatablePhoto';
 import { StatusBadge } from '@/features/puzzles/PuzzleCard';
 import { StatusActions } from '@/features/puzzles/StatusActions';
@@ -79,10 +80,19 @@ function PuzzleDetailPage() {
         {puzzleSubtitle(puzzle) && (
           <p className="text-muted-foreground">{puzzleSubtitle(puzzle)}</p>
         )}
-        {puzzle.completedAt && (
-          <p className="text-sm text-muted-foreground">Finished {formatDate(puzzle.completedAt)}</p>
+        {(puzzle.startedAt || puzzle.completedAt) && (
+          <p className="text-sm text-muted-foreground">
+            {[
+              puzzle.startedAt && `Started ${formatDate(puzzle.startedAt)}`,
+              puzzle.completedAt && `Finished ${formatDate(puzzle.completedAt)}`,
+            ]
+              .filter(Boolean)
+              .join(' · ')}
+          </p>
         )}
       </div>
+
+      <PuzzleTimer puzzle={puzzle} />
 
       <StatusActions puzzle={puzzle} />
 

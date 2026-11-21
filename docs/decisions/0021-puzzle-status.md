@@ -1,6 +1,6 @@
 # 0021. Puzzle status: done, owned, wishlist
 
-- **Status:** Accepted
+- **Status:** Accepted (extended with an in-progress status by [0023](0023-puzzle-timer.md))
 - **Date:** 2026-11-21
 
 ## Context

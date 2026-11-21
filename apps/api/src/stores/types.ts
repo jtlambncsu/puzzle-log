@@ -8,10 +8,33 @@ export interface PuzzleStore {
   list(userId: string): Promise<Puzzle[]>;
   get(userId: string, id: string): Promise<Puzzle | undefined>;
   create(userId: string, input: CreatePuzzleInput): Promise<Puzzle>;
-  /** Applies `patch` and returns the updated puzzle, or `undefined` if it doesn't exist. */
-  update(userId: string, id: string, patch: UpdatePuzzleInput): Promise<Puzzle | undefined>;
+  /**
+   * Applies `patch` and returns the updated puzzle, or `undefined` if it doesn't exist.
+   * With `expect`, the write only happens if the timer is still as the caller last saw it
+   * (`null` meaning not running); otherwise it throws a `ConflictError` and changes nothing.
+   */
+  update(
+    userId: string,
+    id: string,
+    patch: PuzzlePatch,
+    expect?: TimerExpectation,
+  ): Promise<Puzzle | undefined>;
   /** Returns the deleted puzzle (so its photo can be cleaned up), or `undefined`. */
   delete(userId: string, id: string): Promise<Puzzle | undefined>;
+}
+
+/** A client's update plus the field only the API itself may change. */
+export type PuzzlePatch = UpdatePuzzleInput & { timerStartedAt?: string | null };
+
+export interface TimerExpectation {
+  timerStartedAt: string | null;
+}
+
+/** A conditional update found the puzzle changed since it was read. */
+export class ConflictError extends Error {
+  constructor() {
+    super('The puzzle changed while it was being updated');
+  }
 }
 
 export function newPuzzle(userId: string, input: CreatePuzzleInput, id: string): Puzzle {

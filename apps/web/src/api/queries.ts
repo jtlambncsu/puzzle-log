@@ -8,6 +8,7 @@ import {
 import { useRouteContext } from '@tanstack/react-router';
 import type { CreatePuzzleInput, Puzzle, UpdatePuzzleInput } from '@puzzle-log/shared';
 import { compressImage, type Rotation } from '@/lib/image';
+import { today } from '@/lib/date';
 import { tagCounts } from '@/lib/search';
 import { ApiError, uploadPhoto, type PuzzlesApi } from './client';
 import { PERSIST_MAX_AGE } from './persist';
@@ -122,6 +123,28 @@ export function useUpdatePuzzle() {
 
   return useMutation({
     mutationFn: ({ id, patch }: { id: string; patch: UpdatePuzzleInput }) => api.update(id, patch),
+    onSuccess: (updated) => {
+      queryClient.setQueryData(puzzleKeys.detail(updated.id), updated);
+      return queryClient.invalidateQueries({ queryKey: puzzleKeys.list() });
+    },
+  });
+}
+
+/**
+ * Starts or pauses a puzzle's timer. The API owns the clock, so there's no optimistic update:
+ * the button shows a spinner for the moment the request takes, then the saved state.
+ *
+ * `networkMode: 'always'` makes an offline tap fail at once. The default would pause the
+ * request until the phone reconnects, then record the wrong time.
+ */
+export function useTimer() {
+  const api = useApi();
+  const queryClient = useQueryClient();
+
+  return useMutation({
+    networkMode: 'always',
+    mutationFn: ({ id, action }: { id: string; action: 'start' | 'stop' }) =>
+      action === 'start' ? api.startTimer(id, today()) : api.stopTimer(id),
     onSuccess: (updated) => {
       queryClient.setQueryData(puzzleKeys.detail(updated.id), updated);
       return queryClient.invalidateQueries({ queryKey: puzzleKeys.list() });
