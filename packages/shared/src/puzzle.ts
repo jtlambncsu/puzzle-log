@@ -59,6 +59,9 @@ export type TimerSession = z.infer<typeof timerSessionSchema>;
 
 export const sessionsSchema = z.array(timerSessionSchema).max(MAX_SESSIONS);
 
+/** SHA-256 (hex) of an imported photo file, to skip it if it's imported again. */
+export const importHashSchema = z.string().regex(/^[0-9a-f]{64}$/, 'Invalid import hash');
+
 const imageKeySchema = z.string().regex(/^uploads\/[\w-]+\/[\w-]+$/, 'Invalid image key');
 
 /**
@@ -81,12 +84,27 @@ export const createPuzzleSchema = z.object({
   sessions: sessionsSchema.optional(),
   /** S3 object key returned by `POST /api/uploads`. */
   imageKey: imageKeySchema.optional(),
+  /** Imported in bulk and not checked by the user yet (see the review screen). */
+  needsReview: z.literal(true).optional(),
+  /** The photo files this puzzle came from (a merged duplicate adds its own). */
+  importHashes: z.array(importHashSchema).max(50).optional(),
 });
 
 export type CreatePuzzleInput = z.infer<typeof createPuzzleSchema>;
 
-const { title, brand, pieceCount, startedAt, completedAt, notes, tags, barcode, sessions } =
-  createPuzzleSchema.shape;
+const {
+  title,
+  brand,
+  pieceCount,
+  startedAt,
+  completedAt,
+  notes,
+  tags,
+  barcode,
+  sessions,
+  needsReview,
+  importHashes,
+} = createPuzzleSchema.shape;
 
 /**
  * Changes to an existing puzzle (`PATCH /api/puzzles/:id`), following JSON Merge Patch
@@ -105,6 +123,8 @@ export const updatePuzzleSchema = z
     tags: tags.unwrap().nullable().optional(),
     barcode: barcode.unwrap().nullable().optional(),
     sessions: sessions.unwrap().nullable().optional(),
+    needsReview: needsReview.unwrap().nullable().optional(),
+    importHashes: importHashes.unwrap().nullable().optional(),
     imageKey: imageKeySchema.optional(),
   })
   .refine((patch) => Object.keys(patch).length > 0, 'Nothing to update');
@@ -128,6 +148,16 @@ export interface Puzzle extends CreatePuzzleInput {
 export const createUploadSchema = z.object({
   contentType: z.string().regex(/^image\/[\w.+-]+$/, 'Only images can be uploaded'),
 });
+
+/** What AI suggests for an imported puzzle, from its photo. */
+export interface PuzzleSuggestion {
+  title: string;
+  brand?: string;
+  tags: string[];
+}
+
+/** Title an imported puzzle has until it's named (by AI or by hand). */
+export const IMPORTED_TITLE = 'Imported puzzle';
 
 /** Body of `POST /api/puzzles/:id/timer/start`. */
 export const startTimerSchema = z.object({

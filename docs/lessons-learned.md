@@ -117,3 +117,22 @@ difference between `??` and `||`, and inspect the _deployed_ configuration
 ignored at runtime, so tests that made unexpected requests wouldn't have failed.
 
 **Takeaway:** typecheck test code too, and read changelogs for major-version upgrades.
+
+## Shrinking a photo to 9×8 pixels on a canvas samples, it doesn't average
+
+**Symptom:** the import found exact copies but never grouped two shots of the same puzzle.
+Unit tests passed: they fed in made-up fingerprints, because jsdom can't decode images.
+
+**Cause:** the duplicate check shrinks each photo to 9×8 grey pixels. A single
+`drawImage(photo, 0, 0, 9, 8)` on a canvas reads only a handful of the 2 million source
+pixels, so the result depends on exactly which pixels it happens to hit. Re-creating the
+fingerprint in Python showed it: with area averaging, a slightly cropped re-shoot was 5 bits
+from the original; with nearest-pixel sampling, 28, the same as unrelated puzzles.
+
+**Fix:** halve the image step by step (each halving averages 2×2 pixels), draw it at 8 pixels
+per cell, and average the cells in code. The test photos also showed a different puzzle only
+21 bits away, so the looser "taken minutes apart" threshold went from 22 to 16.
+
+**Takeaway:** when tests can't run the real thing (here, image decoding), check it once in a
+real browser with realistic input, and measure the numbers your thresholds depend on instead
+of guessing them.

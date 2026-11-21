@@ -1,6 +1,14 @@
 import { createFileRoute, Link } from '@tanstack/react-router';
 import { useSuspenseQuery } from '@tanstack/react-query';
-import { ChartColumnIcon, ImagesIcon, PlusIcon, PuzzleIcon, SearchXIcon } from 'lucide-react';
+import {
+  ChartColumnIcon,
+  ChevronRightIcon,
+  FolderInputIcon,
+  ImagesIcon,
+  PlusIcon,
+  PuzzleIcon,
+  SearchXIcon,
+} from 'lucide-react';
 import { z } from 'zod';
 import { puzzleStatus, statusSchema, type PuzzleStatus } from '@puzzle-log/shared';
 import { puzzlesQueryOptions, useApi } from '@/api/queries';
@@ -52,6 +60,8 @@ function PuzzleListPage() {
   );
   const filtered = !!q || !!tag || !!status;
 
+  const toReview = puzzles.filter((puzzle) => puzzle.needsReview).length;
+
   function setSearch(next: { q?: string; tag?: string; status?: PuzzleStatus }) {
     // `replace` so each keystroke doesn't add a browser history entry.
     void navigate({
@@ -69,13 +79,37 @@ function PuzzleListPage() {
             ({filtered ? `${matching.length} of ${puzzles.length}` : puzzles.length})
           </span>
         </h1>
-        <Button asChild variant="ghost" size="sm">
-          <Link to="/stats">
-            <ChartColumnIcon aria-hidden />
-            Stats
-          </Link>
-        </Button>
+        <div className="flex">
+          <Button asChild variant="ghost" size="sm">
+            <Link to="/puzzles/import">
+              <FolderInputIcon aria-hidden />
+              Import
+            </Link>
+          </Button>
+          <Button asChild variant="ghost" size="sm">
+            <Link to="/stats">
+              <ChartColumnIcon aria-hidden />
+              Stats
+            </Link>
+          </Button>
+        </div>
       </div>
+
+      {toReview > 0 && (
+        <Link
+          to="/review"
+          className="mb-3 flex items-center gap-3 rounded-xl border bg-muted/50 p-3 text-sm transition-colors hover:bg-muted"
+        >
+          <FolderInputIcon className="size-5 shrink-0 text-muted-foreground" aria-hidden />
+          <span className="flex-1">
+            <span className="font-medium">
+              {toReview} imported {toReview === 1 ? 'puzzle' : 'puzzles'} to review
+            </span>
+            <span className="block text-muted-foreground">Check their titles and tags</span>
+          </span>
+          <ChevronRightIcon className="size-4 text-muted-foreground" aria-hidden />
+        </Link>
+      )}
 
       <PuzzleFilters
         query={q}
@@ -141,6 +175,12 @@ function EmptyState() {
           <Link to="/puzzles/bulk">
             <ImagesIcon aria-hidden />
             Add several from photos
+          </Link>
+        </Button>
+        <Button asChild variant="outline">
+          <Link to="/puzzles/import">
+            <FolderInputIcon aria-hidden />
+            Import a whole album
           </Link>
         </Button>
       </div>

@@ -38,5 +38,8 @@ Context for AI assistants (and humans) picking up this repo. Read `docs/ARCHITEC
 - The `puzzle-log` cloud environment allows `ui.shadcn.com` (shadcn CLI) and
   `api.upcitemdb.com` (barcode lookups). Node's `fetch` ignores the sandbox proxy: run scripts
   that call real services with `NODE_USE_ENV_PROXY=1 NODE_EXTRA_CA_CERTS=/root/.ccr/ca-bundle.crt`.
+- AI suggestions (`apps/api/src/suggestions`) call Claude through `@anthropic-ai/sdk`; the
+  key is in SSM (`/puzzle-log/anthropic-api-key`) and never in code, env files or chat.
+  Tests use a fake `PuzzleSuggester`.
 - New HTTP methods or request headers in the web client must also be added to API Gateway's
   `corsPreflight` (and the S3 bucket's CORS if the browser calls S3). Tests can't catch this.

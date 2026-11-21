@@ -6,14 +6,32 @@
  * The EXIF library is loaded on demand, the first time a photo is picked.
  */
 export async function readPhotoDate(file: Blob): Promise<string | undefined> {
+  return parseExifDate(await readExifDateTime(await file.arrayBuffer()));
+}
+
+/**
+ * When a photo was taken, as `YYYY-MM-DDTHH:MM:SS` in the camera's local time (no time zone),
+ * or `undefined`. Takes the file's bytes, so a caller that already read them (to hash them,
+ * say) doesn't read the file twice.
+ */
+export async function readPhotoTakenAt(bytes: ArrayBuffer): Promise<string | undefined> {
+  const match = (await readExifDateTime(bytes))?.match(
+    /^(\d{4}):(\d{2}):(\d{2}) (\d{2}):(\d{2}):(\d{2})/,
+  );
+  if (!match || !parseExifDate(match[0])) return undefined;
+  const [, year, month, day, hour, minute, second] = match;
+  return `${year}-${month}-${day}T${hour}:${minute}:${second}`;
+}
+
+async function readExifDateTime(bytes: ArrayBuffer) {
   try {
     const { default: ExifReader } = await import('exifreader');
     // Pass bytes, never a string: the library treats strings as URLs or file paths.
-    const tags = ExifReader.load(await file.arrayBuffer());
-    return parseExifDate(
+    const tags = ExifReader.load(bytes);
+    return (
       tags.DateTimeOriginal?.description ??
-        tags.DateTimeDigitized?.description ??
-        tags.DateTime?.description,
+      tags.DateTimeDigitized?.description ??
+      tags.DateTime?.description
     );
   } catch {
     return undefined; // not an image the library understands: just skip the date

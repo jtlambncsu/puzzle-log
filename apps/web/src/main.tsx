@@ -44,7 +44,16 @@ createRoot(document.getElementById('root')!).render(
   <StrictMode>
     <PersistQueryClientProvider
       client={queryClient}
-      persistOptions={{ persister, maxAge: PERSIST_MAX_AGE, buster: PERSIST_BUSTER }}
+      persistOptions={{
+        persister,
+        maxAge: PERSIST_MAX_AGE,
+        buster: PERSIST_BUSTER,
+        // Leave out queries that opt out (AI suggestions: their result is saved on the puzzle).
+        dehydrateOptions: {
+          shouldDehydrateQuery: (query) =>
+            query.state.status === 'success' && query.meta?.persist !== false,
+        },
+      }}
     >
       {userManager ? (
         <AuthProvider userManager={userManager} onSigninCallback={onSigninCallback}>

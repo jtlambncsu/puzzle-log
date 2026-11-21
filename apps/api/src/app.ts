@@ -9,6 +9,7 @@ import { UpcItemDbLookup } from './barcodes/upcitemdb.js';
 import { InMemoryPuzzleStore } from './stores/memory.js';
 import type { PuzzleStore } from './stores/types.js';
 import type { PhotoStorage } from './photos/types.js';
+import type { PuzzleSuggester } from './suggestions/types.js';
 import { requireUser, type ResolveUser } from './auth.js';
 
 export interface AppDeps {
@@ -22,6 +23,8 @@ export interface AppDeps {
   /** Barcode → product lookups. Defaults to UPCitemdb with an in-memory cache. */
   productLookup?: ProductLookup;
   barcodeCache?: BarcodeCache;
+  /** Names imported puzzles from their photos. Omit to turn suggestions off. */
+  suggester?: PuzzleSuggester;
   /** The time, for the puzzle timer. Tests pass a fixed clock. */
   clock?: () => Date;
 }
@@ -33,6 +36,7 @@ export function createApp({
   allowedOrigins,
   productLookup = new UpcItemDbLookup(),
   barcodeCache = new InMemoryBarcodeCache(),
+  suggester,
   clock = () => new Date(),
 }: AppDeps) {
   const app = express();
@@ -47,7 +51,7 @@ export function createApp({
 
   // Everything below needs a signed-in user. In AWS, API Gateway also rejects requests
   // without a valid token before they reach Lambda; this is a second line of defense.
-  app.use('/api/puzzles', requireUser(resolveUser), puzzlesRouter(store, photos, clock));
+  app.use('/api/puzzles', requireUser(resolveUser), puzzlesRouter(store, photos, clock, suggester));
   app.use('/api/uploads', requireUser(resolveUser), uploadsRouter(photos));
   app.use('/api/barcodes', requireUser(resolveUser), barcodesRouter(productLookup, barcodeCache));
 

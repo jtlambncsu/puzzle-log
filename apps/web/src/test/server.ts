@@ -5,6 +5,7 @@ import {
   type BarcodeLookupResult,
   type CreatePuzzleInput,
   type ProductInfo,
+  type PuzzleSuggestion,
   type Puzzle,
   type StartTimerInput,
   type UpdatePuzzleInput,
@@ -21,7 +22,12 @@ export const db = {
   /** What the fake barcode lookup knows, keyed by normalized barcode. */
   products: new Map<string, ProductInfo>(),
   barcodeLookups: [] as string[],
+  /** What the fake AI suggests, by puzzle id. Missing means the suggestion fails (503). */
+  suggestions: new Map<string, PuzzleSuggestion>(),
+  suggestCalls: [] as string[],
   reset() {
+    this.suggestions.clear();
+    this.suggestCalls = [];
     this.products.clear();
     this.barcodeLookups = [];
     this.puzzles.clear();
@@ -105,6 +111,18 @@ export const handlers = [
     if (!existing) return HttpResponse.json({}, { status: 404 });
     const updated = stopTimer(existing);
     db.puzzles.set(updated.id, updated);
+    return HttpResponse.json(updated);
+  }),
+
+  http.post('/api/puzzles/:id/suggest', ({ params }) => {
+    const id = params.id as string;
+    db.suggestCalls.push(id);
+    const existing = db.puzzles.get(id);
+    const suggestion = db.suggestions.get(id);
+    if (!existing) return HttpResponse.json({}, { status: 404 });
+    if (!suggestion) return HttpResponse.json({}, { status: 503 });
+    const updated = { ...existing, ...suggestion };
+    db.puzzles.set(id, updated);
     return HttpResponse.json(updated);
   }),
 

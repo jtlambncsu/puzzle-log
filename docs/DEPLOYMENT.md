@@ -134,6 +134,28 @@ Sign-up is turned off, so users are created by hand:
 To let someone else in later, create a user for them the same way. Each user only ever
 sees their own puzzles and photos.
 
+### 8. Turn on AI suggestions for imports (optional)
+
+The review screen for imported photos asks Claude to suggest a title and tags. It needs an
+Anthropic API key, stored once in AWS Systems Manager Parameter Store as an encrypted
+`SecureString` (free). Until it exists, suggestions are simply skipped and you type titles.
+
+1. At [console.anthropic.com](https://console.anthropic.com): add a small credit (e.g. $10),
+   set a monthly spend limit under **Limits**, and create an API key under **API Keys**.
+2. In AWS CloudShell (region **us-east-1**), run these. `read -rs` keeps the key out of the
+   screen and the shell history: paste it and press Enter (nothing appears).
+
+   ```bash
+   read -rs ANTHROPIC_KEY
+   aws ssm put-parameter --region us-east-1 --name /puzzle-log/anthropic-api-key \
+     --type SecureString --value "$ANTHROPIC_KEY" --overwrite
+   unset ANTHROPIC_KEY
+   ```
+
+The Lambda reads it on first use, so there's nothing to redeploy. To change the key, run the
+same commands again; a running Lambda picks it up within about 15 minutes (when AWS replaces
+its instance). Never paste the key into a chat, an issue or the repo.
+
 ## Day to day
 
 - Push or merge to `main`: the API deploys from GitHub Actions and the web app from Vercel.
@@ -180,6 +202,8 @@ redeploy on Vercel.
 - **CORS** allows any origin by default. Once you have a fixed domain you can set the
   `ALLOWED_ORIGINS` GitHub variable (comma-separated, e.g. `https://puzzles.example.com`),
   but that blocks Vercel preview URLs.
+- **AI suggestions** cost about 1 to 2 cents per reviewed photo, billed by Anthropic (not
+  AWS), and only run for imported puzzles. The spend limit in the Anthropic console caps it.
 - **Cost:** for personal use this should fit in the AWS free tier or cost cents a month.
   Set up an **AWS Budget** with an email alert (e.g. $5/month) anyway.
 - **Data safety:** the DynamoDB table (with point-in-time recovery) and the photo bucket

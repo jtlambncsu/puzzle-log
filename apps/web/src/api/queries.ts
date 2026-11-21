@@ -34,6 +34,37 @@ export const puzzleQueryOptions = (api: PuzzlesApi, id: string) =>
   queryOptions({ queryKey: puzzleKeys.detail(id), queryFn: () => api.get(id) });
 
 /**
+ * Puts a changed puzzle into the cached list and its detail right away, so the screen
+ * updates without waiting for the list to be fetched again.
+ */
+export function cachePuzzle(queryClient: QueryClient, updated: Puzzle) {
+  queryClient.setQueryData(puzzleKeys.detail(updated.id), updated);
+  queryClient.setQueryData(puzzleKeys.list(), (list?: Puzzle[]) =>
+    list?.map((puzzle) => (puzzle.id === updated.id ? updated : puzzle)),
+  );
+}
+
+/**
+ * AI's title and tags for an imported puzzle. The API saves them on the puzzle and returns
+ * it. It's a POST, but modelled as a query on purpose: the review screen asks for the next
+ * few puzzles ahead of time, and a query gives that for free, with one request per puzzle
+ * however often the screen re-renders, and a status to show while it runs. `retry: false`
+ * and `staleTime: Infinity` because each call costs money; a failure shows a Try again button.
+ */
+export const suggestionQueryOptions = (api: PuzzlesApi, queryClient: QueryClient, id: string) =>
+  queryOptions({
+    queryKey: ['suggestions', id] as const,
+    queryFn: async () => {
+      const updated = await api.suggest(id);
+      cachePuzzle(queryClient, updated);
+      return updated;
+    },
+    staleTime: Infinity,
+    retry: false,
+    meta: { persist: false },
+  });
+
+/**
  * What product a barcode is. Products don't change, so once fetched it never goes stale.
  * (The server caches lookups too; this avoids even asking it again in the same session.)
  */
@@ -124,7 +155,7 @@ export function useUpdatePuzzle() {
   return useMutation({
     mutationFn: ({ id, patch }: { id: string; patch: UpdatePuzzleInput }) => api.update(id, patch),
     onSuccess: (updated) => {
-      queryClient.setQueryData(puzzleKeys.detail(updated.id), updated);
+      cachePuzzle(queryClient, updated);
       return queryClient.invalidateQueries({ queryKey: puzzleKeys.list() });
     },
   });
@@ -187,7 +218,7 @@ export function useRotatePuzzlePhoto() {
       return api.update(puzzle.id, { imageKey });
     },
     onSuccess: (updated) => {
-      queryClient.setQueryData(puzzleKeys.detail(updated.id), updated);
+      cachePuzzle(queryClient, updated);
       return queryClient.invalidateQueries({ queryKey: puzzleKeys.list() });
     },
   });
@@ -201,6 +232,9 @@ export function useDeletePuzzle() {
     mutationFn: (id: string) => api.remove(id),
     onSuccess: (_data, id) => {
       queryClient.removeQueries({ queryKey: puzzleKeys.detail(id) });
+      queryClient.setQueryData(puzzleKeys.list(), (list?: Puzzle[]) =>
+        list?.filter((puzzle) => puzzle.id !== id),
+      );
       return queryClient.invalidateQueries({ queryKey: puzzleKeys.list() });
     },
   });

@@ -1,4 +1,4 @@
-import { createFileRoute, useNavigate } from '@tanstack/react-router';
+import { createFileRoute, Link, useNavigate } from '@tanstack/react-router';
 import { toast } from 'sonner';
 import { BulkAddForm } from '@/features/puzzles/BulkAddForm';
 import { MAX_BULK_PHOTOS } from '@/features/puzzles/bulkForm';
@@ -16,6 +16,13 @@ function BulkAddPage() {
       <p className="mb-4 text-sm text-muted-foreground">
         Pick up to {MAX_BULK_PHOTOS} photos. Dates are filled in from the photos when they have one;
         add a title to each and save them all at once.
+      </p>
+      <p className="mb-4 text-sm text-muted-foreground">
+        Have hundreds of old photos?{' '}
+        <Link to="/puzzles/import" className="font-medium text-foreground underline">
+          Import a whole album
+        </Link>{' '}
+        instead: duplicates are skipped and AI suggests the titles.
       </p>
       <BulkAddForm
         onDone={({ saved, failed }) => {
