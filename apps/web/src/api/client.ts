@@ -1,4 +1,5 @@
 import type {
+  BarcodeLookupResult,
   CreatePuzzleInput,
   Puzzle,
   UpdatePuzzleInput,
@@ -28,6 +29,8 @@ function messageForStatus(status: number) {
       return 'Not found';
     case 501:
       return "Photo uploads aren't set up on this server"; // local dev has no S3
+    case 503:
+      return 'That service is unavailable right now. Try again later.';
     default:
       return `Request failed: ${status}`;
   }
@@ -69,6 +72,8 @@ export function createPuzzlesApi(getAccessToken: GetAccessToken) {
       }),
     remove: (id: string) =>
       request<void>(`/puzzles/${encodeURIComponent(id)}`, { method: 'DELETE' }),
+    lookupBarcode: (barcode: string) =>
+      request<BarcodeLookupResult>(`/barcodes/${encodeURIComponent(barcode)}`),
     createUpload: (contentType: string) =>
       request<UploadTarget>('/uploads', { method: 'POST', body: JSON.stringify({ contentType }) }),
   };

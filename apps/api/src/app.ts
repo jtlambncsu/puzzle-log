@@ -2,6 +2,10 @@ import express, { type ErrorRequestHandler } from 'express';
 import cors from 'cors';
 import { puzzlesRouter } from './routes/puzzles.js';
 import { uploadsRouter } from './routes/uploads.js';
+import { barcodesRouter } from './routes/barcodes.js';
+import { InMemoryBarcodeCache } from './barcodes/cache.js';
+import type { BarcodeCache, ProductLookup } from './barcodes/types.js';
+import { UpcItemDbLookup } from './barcodes/upcitemdb.js';
 import { InMemoryPuzzleStore } from './stores/memory.js';
 import type { PuzzleStore } from './stores/types.js';
 import type { PhotoStorage } from './photos/types.js';
@@ -15,6 +19,9 @@ export interface AppDeps {
   photos?: PhotoStorage;
   /** Origins allowed to call the API from a browser. Omit to allow any origin. */
   allowedOrigins?: string[];
+  /** Barcode → product lookups. Defaults to UPCitemdb with an in-memory cache. */
+  productLookup?: ProductLookup;
+  barcodeCache?: BarcodeCache;
 }
 
 export function createApp({
@@ -22,6 +29,8 @@ export function createApp({
   store = new InMemoryPuzzleStore(),
   photos,
   allowedOrigins,
+  productLookup = new UpcItemDbLookup(),
+  barcodeCache = new InMemoryBarcodeCache(),
 }: AppDeps) {
   const app = express();
 
@@ -37,6 +46,7 @@ export function createApp({
   // without a valid token before they reach Lambda; this is a second line of defense.
   app.use('/api/puzzles', requireUser(resolveUser), puzzlesRouter(store, photos));
   app.use('/api/uploads', requireUser(resolveUser), uploadsRouter(photos));
+  app.use('/api/barcodes', requireUser(resolveUser), barcodesRouter(productLookup, barcodeCache));
 
   app.use('/api', (_req, res) => {
     res.status(404).json({ error: 'Not found' });

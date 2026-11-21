@@ -497,6 +497,7 @@ describe('editing a puzzle', () => {
       completedAt: null,
       notes: null,
       tags: ['Star Wars'],
+      barcode: null,
     });
     expect(await screen.findByRole('link', { name: 'Star Wars' })).toBeInTheDocument();
     expect(screen.queryByText(/Ravensburger/)).not.toBeInTheDocument();

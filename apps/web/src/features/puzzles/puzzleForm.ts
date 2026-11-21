@@ -2,6 +2,7 @@ import { z } from 'zod';
 import {
   createPuzzleSchema,
   MAX_TAGS,
+  normalizeBarcode,
   tagSchema,
   type CreatePuzzleInput,
   type Puzzle,
@@ -26,6 +27,10 @@ export const puzzleFormSchema = z.object({
   completedAt: z.string(),
   notes: notes.unwrap(),
   tags: z.array(tagSchema).max(MAX_TAGS),
+  barcode: z
+    .string()
+    .trim()
+    .refine((value) => !value || normalizeBarcode(value), 'Not a valid barcode'),
 });
 
 export type PuzzleFormValues = z.infer<typeof puzzleFormSchema>;
@@ -37,6 +42,7 @@ export const emptyPuzzleForm: PuzzleFormValues = {
   completedAt: '',
   notes: '',
   tags: [],
+  barcode: '',
 };
 
 /** Fills the form from a saved puzzle, for editing. */
@@ -48,6 +54,7 @@ export function puzzleToFormValues(puzzle: Puzzle): PuzzleFormValues {
     completedAt: puzzle.completedAt ?? '',
     notes: puzzle.notes ?? '',
     tags: puzzle.tags ?? [],
+    barcode: puzzle.barcode ?? '',
   };
 }
 
@@ -60,6 +67,7 @@ export function toCreatePuzzleInput(values: PuzzleFormValues): CreatePuzzleInput
     completedAt: values.completedAt || undefined,
     notes: values.notes.trim() || undefined,
     tags: values.tags.length ? values.tags : undefined,
+    barcode: values.barcode || undefined,
   });
 }
 
@@ -76,5 +84,6 @@ export function toUpdatePuzzleInput(values: PuzzleFormValues): UpdatePuzzleInput
     completedAt: input.completedAt ?? null,
     notes: input.notes ?? null,
     tags: input.tags ?? null,
+    barcode: input.barcode ?? null,
   };
 }

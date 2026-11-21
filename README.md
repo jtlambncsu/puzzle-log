@@ -69,15 +69,16 @@ Add a dependency to one workspace with `npm i <pkg> -w @puzzle-log/api`.
 
 ## API
 
-| Method | Path               | Notes                                        |
-| ------ | ------------------ | -------------------------------------------- |
-| GET    | `/api/health`      | Health check                                 |
-| GET    | `/api/puzzles`     | List puzzles (newest first)                  |
-| GET    | `/api/puzzles/:id` | Get one puzzle                               |
-| POST   | `/api/puzzles`     | Create (validated with Zod)                  |
-| PATCH  | `/api/puzzles/:id` | Update (Merge Patch: `null` removes a field) |
-| DELETE | `/api/puzzles/:id` | Delete                                       |
-| POST   | `/api/uploads`     | Get a presigned photo upload                 |
+| Method | Path                  | Notes                                               |
+| ------ | --------------------- | --------------------------------------------------- |
+| GET    | `/api/health`         | Health check                                        |
+| GET    | `/api/puzzles`        | List puzzles (newest first)                         |
+| GET    | `/api/puzzles/:id`    | Get one puzzle                                      |
+| POST   | `/api/puzzles`        | Create (validated with Zod)                         |
+| PATCH  | `/api/puzzles/:id`    | Update (Merge Patch: `null` removes a field)        |
+| DELETE | `/api/puzzles/:id`    | Delete                                              |
+| POST   | `/api/uploads`        | Get a presigned photo upload                        |
+| GET    | `/api/barcodes/:code` | What product a barcode is (cached UPCitemdb lookup) |
 
 Locally, data is stored in memory (it resets on restart), photo uploads are off, and there
 is no login: every request belongs to one dev user. In
@@ -103,7 +104,7 @@ The API goes to AWS (CDK, deployed by GitHub Actions) and the web app to Vercel.
 - [x] Dates from photo EXIF; bulk add from many photos
 - [x] Rotate photos before upload and after saving
 - [x] Search, tags, and editing puzzles
-- [ ] Scan a box's barcode in a store to see if you've done that puzzle
+- [x] Scan a box's barcode in a store to see if you've done that puzzle
 - [ ] Sort the list (by date finished, pieces, title)
 - [ ] Playwright smoke tests against the deployed app
 - [ ] Mobile app: Expo / React Native in `apps/mobile`, reusing `packages/shared`

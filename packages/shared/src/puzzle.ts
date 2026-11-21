@@ -1,4 +1,5 @@
 import { z } from 'zod';
+import { barcodeSchema } from './barcode.js';
 
 export const MAX_TAGS = 20;
 
@@ -40,13 +41,15 @@ export const createPuzzleSchema = z.object({
   completedAt: z.iso.date().optional(),
   notes: z.string().max(2000).optional(),
   tags: tagsSchema.optional(),
+  /** Product barcode (normalized to 13 digits), for scanning boxes in a shop. */
+  barcode: barcodeSchema.optional(),
   /** S3 object key returned by `POST /api/uploads`. */
   imageKey: imageKeySchema.optional(),
 });
 
 export type CreatePuzzleInput = z.infer<typeof createPuzzleSchema>;
 
-const { title, brand, pieceCount, completedAt, notes, tags } = createPuzzleSchema.shape;
+const { title, brand, pieceCount, completedAt, notes, tags, barcode } = createPuzzleSchema.shape;
 
 /**
  * Changes to an existing puzzle (`PATCH /api/puzzles/:id`), following JSON Merge Patch
@@ -61,6 +64,7 @@ export const updatePuzzleSchema = z
     completedAt: completedAt.unwrap().nullable().optional(),
     notes: notes.unwrap().nullable().optional(),
     tags: tags.unwrap().nullable().optional(),
+    barcode: barcode.unwrap().nullable().optional(),
     imageKey: imageKeySchema.optional(),
   })
   .refine((patch) => Object.keys(patch).length > 0, 'Nothing to update');

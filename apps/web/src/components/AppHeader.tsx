@@ -1,5 +1,5 @@
 import { Link, useRouteContext } from '@tanstack/react-router';
-import { LogOutIcon, PlusIcon } from 'lucide-react';
+import { LogOutIcon, PlusIcon, ScanBarcodeIcon } from 'lucide-react';
 import { Button } from '@/components/ui/button';
 
 export function AppHeader() {
@@ -8,9 +8,15 @@ export function AppHeader() {
   return (
     <header className="sticky top-0 z-10 border-b bg-background/80 backdrop-blur">
       <div className="mx-auto flex h-14 max-w-3xl items-center gap-2 px-4">
-        <Link to="/" className="mr-auto font-heading text-lg font-semibold">
+        <Link to="/" className="mr-auto min-w-0 truncate font-heading text-lg font-semibold">
           🧩 Puzzle Log
         </Link>
+        <Button asChild variant="outline" size="sm">
+          <Link to="/scan">
+            <ScanBarcodeIcon aria-hidden />
+            Scan
+          </Link>
+        </Button>
         <Button asChild size="sm">
           <Link to="/puzzles/new">
             <PlusIcon aria-hidden />

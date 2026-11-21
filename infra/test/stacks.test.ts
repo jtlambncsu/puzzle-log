@@ -64,6 +64,16 @@ describe('ApiStack', () => {
     });
   });
 
+  it('caches barcode lookups in a table that expires entries', () => {
+    template.hasResourceProperties('AWS::DynamoDB::GlobalTable', {
+      KeySchema: [{ AttributeName: 'barcode', KeyType: 'HASH' }],
+      TimeToLiveSpecification: { AttributeName: 'expiresAt', Enabled: true },
+    });
+    template.hasResourceProperties('AWS::Lambda::Function', {
+      Environment: { Variables: Match.objectLike({ BARCODE_TABLE: Match.anyValue() }) },
+    });
+  });
+
   it('keys puzzles by user', () => {
     template.hasResourceProperties('AWS::DynamoDB::GlobalTable', {
       KeySchema: [

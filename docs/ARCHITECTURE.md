@@ -84,6 +84,14 @@ cached list in the browser on every keystroke: every search word must appear in 
 brand, notes, tags or piece count. Tag chips come from the tags in use. Editing a puzzle sends
 a JSON Merge Patch (`null` removes a field). See [ADR 0018](decisions/0018-search-tags-editing.md).
 
+### Scanning a box in a shop
+
+`/scan` decodes the camera feed in the browser (ZXing WebAssembly, self-hosted) and opens
+`/scan/<barcode>`. If one of your puzzles has that barcode, it says so immediately. Otherwise
+the API looks the barcode up (UPCitemdb, cached in DynamoDB) and the page suggests your
+puzzles with similar titles; picking one saves the barcode for next time, or "Add it" opens a
+pre-filled form. See [ADR 0019](decisions/0019-barcode-scanning.md).
+
 ## Local development
 
 `npm run dev` runs the API on :3001 (in-memory storage, no login, uploads off) and the web
