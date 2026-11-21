@@ -114,8 +114,7 @@ describe('adding a puzzle', () => {
 
 /** Small real JPEGs from `src/test/fixtures`, so the actual EXIF library runs. */
 function fixturePhoto(name: string) {
-  // Vitest runs from apps/web (in jsdom, import.meta.url isn't a file path).
-  const bytes = readFileSync(join(process.cwd(), 'src/test/fixtures', name));
+  const bytes = readFileSync(join(process.env.FIXTURES_DIR!, name));
   return new File([bytes], name, { type: 'image/jpeg' });
 }
 
@@ -492,6 +491,7 @@ describe('editing a puzzle', () => {
     // Blank fields are sent as null, which removes them.
     expect(db.patches.at(-1)).toEqual({
       title: 'Hoth',
+      status: 'done',
       brand: null,
       pieceCount: 1000,
       completedAt: null,
@@ -501,6 +501,56 @@ describe('editing a puzzle', () => {
     });
     expect(await screen.findByRole('link', { name: 'Star Wars' })).toBeInTheDocument();
     expect(screen.queryByText(/Ravensburger/)).not.toBeInTheDocument();
+  });
+});
+
+describe('statuses', () => {
+  it('filters the list by status and marks puzzles that are not done', async () => {
+    db.add({ title: 'Finished one' });
+    db.add({ title: 'On the shelf', status: 'owned' });
+    db.add({ title: 'Want it', status: 'wishlist' });
+    const user = userEvent.setup();
+    const { router } = renderApp('/');
+
+    await user.click(await screen.findByRole('button', { name: 'Wishlist, 1 puzzle' }));
+
+    expect(screen.getByText('Want it')).toBeInTheDocument();
+    expect(screen.queryByText('Finished one')).not.toBeInTheDocument();
+    expect(router.state.location.search).toEqual({ status: 'wishlist' });
+    // Old puzzles without a status count as done.
+    await user.click(screen.getByRole('button', { name: 'Done, 1 puzzle' }));
+    expect(screen.getByText('Finished one')).toBeInTheDocument();
+  });
+
+  it('adds a wishlist puzzle without a finished date', async () => {
+    const user = userEvent.setup();
+    renderApp('/puzzles/new');
+
+    await user.type(await screen.findByLabelText('Title'), 'Someday');
+    await user.click(screen.getByRole('radio', { name: 'Wishlist' }));
+    expect(screen.queryByLabelText('Finished on')).not.toBeInTheDocument();
+    await user.click(screen.getByRole('button', { name: /save puzzle/i }));
+
+    await waitFor(() => expect(db.puzzles.size).toBe(1));
+    expect([...db.puzzles.values()][0]).toMatchObject({ title: 'Someday', status: 'wishlist' });
+    expect([...db.puzzles.values()][0]?.completedAt).toBeUndefined();
+  });
+
+  it('moves a puzzle along wishlist → owned → done with one tap each', async () => {
+    const puzzle = db.add({ title: 'Someday', status: 'wishlist' });
+    const user = userEvent.setup();
+    renderApp(`/puzzles/${puzzle.id}`);
+
+    await user.click(await screen.findByRole('button', { name: 'I bought it' }));
+    await user.click(await screen.findByRole('button', { name: 'Mark as done' }));
+
+    await waitFor(() => expect(db.puzzles.get(puzzle.id)?.status).toBe('done'));
+    expect(db.patches[0]).toEqual({ status: 'owned' });
+    expect(db.patches[1]).toEqual({
+      status: 'done',
+      completedAt: new Date().toLocaleDateString('en-CA'),
+    });
+    expect(screen.queryByRole('button', { name: 'Mark as done' })).not.toBeInTheDocument();
   });
 });
 

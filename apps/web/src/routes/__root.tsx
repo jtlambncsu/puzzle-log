@@ -8,6 +8,7 @@ import {
 import { useQueryErrorResetBoundary } from '@tanstack/react-query';
 import { AppHeader } from '@/components/AppHeader';
 import { ErrorState } from '@/components/ErrorState';
+import { OfflineBanner } from '@/components/OfflineBanner';
 import { Button } from '@/components/ui/button';
 import type { RouterContext } from '@/router';
 
@@ -21,6 +22,7 @@ function RootLayout() {
   return (
     <div className="min-h-svh">
       <AppHeader />
+      <OfflineBanner />
       <main className="mx-auto max-w-3xl px-4 py-6">
         <Outlet />
       </main>

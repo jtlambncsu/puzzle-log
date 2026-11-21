@@ -1,6 +1,6 @@
 import { render, screen } from '@testing-library/react';
 import userEvent from '@testing-library/user-event';
-import { describe, expect, it, vi } from 'vitest';
+import { afterEach, describe, expect, it, vi } from 'vitest';
 import { useAuth, type AuthContextProps } from 'react-oidc-context';
 import type { AuthInfo } from '@/router';
 import { AuthGate } from './AuthGate';
@@ -13,6 +13,7 @@ function mockAuth(state: Partial<AuthContextProps>) {
     isLoading: false,
     isAuthenticated: false,
     signinRedirect: vi.fn(),
+    signinSilent: vi.fn().mockResolvedValue(undefined),
     removeUser: vi.fn().mockResolvedValue(undefined),
     ...state,
   } as AuthContextProps;
@@ -22,7 +23,18 @@ function mockAuth(state: Partial<AuthContextProps>) {
 
 const app = vi.fn((_auth: AuthInfo) => <p>secret stuff</p>);
 
+function setOnline(online: boolean) {
+  vi.spyOn(navigator, 'onLine', 'get').mockReturnValue(online);
+}
+
+const expiredUser = {
+  expired: true,
+  profile: { email: 'me@example.com' },
+} as AuthContextProps['user'];
+
 describe('AuthGate', () => {
+  afterEach(() => vi.restoreAllMocks());
+
   it('asks signed-out users to sign in', async () => {
     const auth = mockAuth({});
     render(<AuthGate>{app}</AuthGate>);
@@ -43,20 +55,54 @@ describe('AuthGate', () => {
     expect(app).toHaveBeenLastCalledWith(expect.objectContaining({ email: 'me@example.com' }));
   });
 
-  it('signs out locally and at Cognito', async () => {
+  it('deletes saved data, then signs out locally and at Cognito', async () => {
     const auth = mockAuth({
       isAuthenticated: true,
       user: { profile: {} } as AuthContextProps['user'],
     });
     const assign = vi.fn();
     vi.stubGlobal('location', { ...window.location, assign });
-    render(<AuthGate>{app}</AuthGate>);
+    const order: string[] = [];
+    const onSignOut = vi.fn(async () => {
+      order.push('forget data');
+    });
+    vi.mocked(auth.removeUser).mockImplementation(async () => {
+      order.push('remove tokens');
+    });
+    render(<AuthGate onSignOut={onSignOut}>{app}</AuthGate>);
 
     app.mock.lastCall![0].signOut();
 
     await vi.waitFor(() => expect(assign).toHaveBeenCalledWith('https://login.example/logout'));
-    expect(auth.removeUser).toHaveBeenCalled();
+    expect(order).toEqual(['forget data', 'remove tokens']);
     vi.unstubAllGlobals();
+  });
+
+  it('refreshes an expired session silently instead of asking to sign in', async () => {
+    setOnline(true);
+    const auth = mockAuth({ user: expiredUser });
+    render(<AuthGate>{app}</AuthGate>);
+
+    expect(screen.getByLabelText('Loading')).toBeInTheDocument();
+    expect(auth.signinSilent).toHaveBeenCalledTimes(1);
+  });
+
+  it('asks to sign in if the silent refresh fails', async () => {
+    setOnline(true);
+    const auth = mockAuth({ user: expiredUser });
+    vi.mocked(auth.signinSilent).mockRejectedValue(new Error('refresh token expired'));
+    render(<AuthGate>{app}</AuthGate>);
+
+    expect(await screen.findByRole('button', { name: 'Sign in' })).toBeInTheDocument();
+  });
+
+  it('shows saved puzzles offline even with an expired session', () => {
+    setOnline(false);
+    const auth = mockAuth({ user: expiredUser });
+    render(<AuthGate>{app}</AuthGate>);
+
+    expect(screen.getByText('secret stuff')).toBeInTheDocument();
+    expect(auth.signinSilent).not.toHaveBeenCalled();
   });
 
   it('shows sign-in errors', () => {

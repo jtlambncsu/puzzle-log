@@ -1,4 +1,5 @@
 import { z } from 'zod';
+import type { PuzzleStatus } from '@puzzle-log/shared';
 import { emptyPuzzleForm, puzzleFormSchema, toCreatePuzzleInput } from './puzzleForm';
 
 /** Most photos picked in one go. Keeps memory and upload time reasonable on a phone. */
@@ -21,6 +22,14 @@ export function newBulkItem(photo: File): BulkItem {
 }
 
 /** `sharedTags` come from the "Tags for all photos" field and apply to every row. */
-export function bulkItemToInput({ photo: _photo, ...fields }: BulkItem, sharedTags: string[] = []) {
-  return toCreatePuzzleInput({ ...emptyPuzzleForm, ...fields, tags: sharedTags });
+export function bulkItemToInput(
+  { photo: _photo, ...fields }: BulkItem,
+  shared: { tags?: string[]; status?: PuzzleStatus } = {},
+) {
+  return toCreatePuzzleInput({
+    ...emptyPuzzleForm,
+    ...fields,
+    tags: shared.tags ?? [],
+    status: shared.status ?? 'done',
+  });
 }

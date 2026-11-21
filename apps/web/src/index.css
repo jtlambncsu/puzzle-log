@@ -132,3 +132,14 @@
     @apply font-sans;
   }
 }
+
+/*
+ * Single-series chart color (validated for contrast on the light and dark card surfaces with
+ * the dataviz palette validator). One hue: these charts show one measure each.
+ */
+:root {
+  --series-1: #2a78d6;
+}
+.dark {
+  --series-1: #3987e5;
+}

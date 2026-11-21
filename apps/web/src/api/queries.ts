@@ -10,6 +10,7 @@ import type { CreatePuzzleInput, Puzzle, UpdatePuzzleInput } from '@puzzle-log/s
 import { compressImage, type Rotation } from '@/lib/image';
 import { tagCounts } from '@/lib/search';
 import { ApiError, uploadPhoto, type PuzzlesApi } from './client';
+import { PERSIST_MAX_AGE } from './persist';
 
 /**
  * Query keys in one place. Every key starts with 'puzzles', so invalidating
@@ -70,6 +71,8 @@ export function createQueryClient() {
         // Photo URLs are signed for an hour; 30s keeps navigation snappy without serving
         // stale data for long.
         staleTime: 30_000,
+        // Keep data in memory (and in the offline copy) for as long as it's persisted.
+        gcTime: PERSIST_MAX_AGE,
         retry: shouldRetry,
       },
     },

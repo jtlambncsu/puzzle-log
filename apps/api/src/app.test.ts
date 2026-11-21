@@ -80,6 +80,21 @@ describe('API', () => {
     expect((await request(app).get(`/api/puzzles/${puzzle.id}`).set(alice)).status).toBe(200);
   });
 
+  it('stores a status and rejects unknown ones', async () => {
+    const app = testApp();
+    const created = await request(app)
+      .post('/api/puzzles')
+      .set(alice)
+      .send({ title: 'Someday', status: 'wishlist' });
+    expect(created.body.status).toBe('wishlist');
+
+    const bad = await request(app)
+      .post('/api/puzzles')
+      .set(alice)
+      .send({ title: 'x', status: 'lost' });
+    expect(bad.status).toBe(400);
+  });
+
   it('rejects an invalid puzzle', async () => {
     const res = await request(testApp()).post('/api/puzzles').set(alice).send({ title: '' });
     expect(res.status).toBe(400);
