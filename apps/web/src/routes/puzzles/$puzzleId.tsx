@@ -1,0 +1,99 @@
+import { createFileRoute, Link, notFound, useNavigate } from '@tanstack/react-router';
+import { useSuspenseQuery } from '@tanstack/react-query';
+import { ArrowLeftIcon, Trash2Icon } from 'lucide-react';
+import { toast } from 'sonner';
+import { ApiError } from '@/api/client';
+import { puzzleQueryOptions, useApi, useDeletePuzzle } from '@/api/queries';
+import {
+  AlertDialog,
+  AlertDialogAction,
+  AlertDialogCancel,
+  AlertDialogContent,
+  AlertDialogDescription,
+  AlertDialogFooter,
+  AlertDialogHeader,
+  AlertDialogTitle,
+  AlertDialogTrigger,
+} from '@/components/ui/alert-dialog';
+import { Button } from '@/components/ui/button';
+import { Skeleton } from '@/components/ui/skeleton';
+import { formatDate, puzzleSubtitle } from '@/features/puzzles/format';
+import { PuzzlePhoto } from '@/features/puzzles/PuzzleCard';
+
+export const Route = createFileRoute('/puzzles/$puzzleId')({
+  loader: async ({ context: { queryClient, api }, params }) => {
+    try {
+      await queryClient.ensureQueryData(puzzleQueryOptions(api, params.puzzleId));
+    } catch (error) {
+      // A missing (or someone else's) puzzle shows the not-found page, not an error.
+      if (error instanceof ApiError && error.status === 404) throw notFound();
+      throw error;
+    }
+  },
+  pendingComponent: () => <Skeleton className="aspect-square w-full rounded-xl" />,
+  component: PuzzleDetailPage,
+});
+
+function PuzzleDetailPage() {
+  const { puzzleId } = Route.useParams(); // typed: TanStack Router knows this route's params
+  const api = useApi();
+  const { data: puzzle } = useSuspenseQuery(puzzleQueryOptions(api, puzzleId));
+  const deletePuzzle = useDeletePuzzle();
+  const navigate = useNavigate();
+
+  async function handleDelete() {
+    try {
+      await deletePuzzle.mutateAsync(puzzle.id);
+      toast.success(`Deleted “${puzzle.title}”`);
+      await navigate({ to: '/' });
+    } catch (error) {
+      toast.error(error instanceof Error ? error.message : 'Could not delete the puzzle');
+    }
+  }
+
+  return (
+    <article className="space-y-4">
+      <Button asChild variant="ghost" size="sm" className="-ml-2">
+        <Link to="/">
+          <ArrowLeftIcon aria-hidden />
+          All puzzles
+        </Link>
+      </Button>
+
+      <PuzzlePhoto puzzle={puzzle} className="aspect-square rounded-xl" />
+
+      <div>
+        <h1 className="font-heading text-2xl font-semibold">{puzzle.title}</h1>
+        {puzzleSubtitle(puzzle) && (
+          <p className="text-muted-foreground">{puzzleSubtitle(puzzle)}</p>
+        )}
+        {puzzle.completedAt && (
+          <p className="text-sm text-muted-foreground">Finished {formatDate(puzzle.completedAt)}</p>
+        )}
+      </div>
+
+      {puzzle.notes && <p className="whitespace-pre-wrap">{puzzle.notes}</p>}
+
+      <AlertDialog>
+        <AlertDialogTrigger asChild>
+          <Button variant="destructive" disabled={deletePuzzle.isPending}>
+            <Trash2Icon aria-hidden />
+            Delete puzzle
+          </Button>
+        </AlertDialogTrigger>
+        <AlertDialogContent>
+          <AlertDialogHeader>
+            <AlertDialogTitle>Delete “{puzzle.title}”?</AlertDialogTitle>
+            <AlertDialogDescription>This can't be undone.</AlertDialogDescription>
+          </AlertDialogHeader>
+          <AlertDialogFooter>
+            <AlertDialogCancel>Cancel</AlertDialogCancel>
+            <AlertDialogAction variant="destructive" onClick={() => void handleDelete()}>
+              Delete
+            </AlertDialogAction>
+          </AlertDialogFooter>
+        </AlertDialogContent>
+      </AlertDialog>
+    </article>
+  );
+}

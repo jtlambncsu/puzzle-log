@@ -5,21 +5,42 @@ Just tracking my puzzles. 🧩
 A TypeScript monorepo with a Node/Express API and a React frontend, built with
 [npm workspaces](https://docs.npmjs.com/cli/using-npm/workspaces).
 
+Live at https://puzzle-log-one.vercel.app (sign-in required).
+
+## Documentation
+
+- [Architecture overview](docs/ARCHITECTURE.md): how the pieces fit and request flows
+- [Architecture Decision Records](docs/decisions/README.md): why each technology was chosen
+- [Deployment guide](docs/DEPLOYMENT.md): one-time AWS, GitHub and Vercel setup
+- [Lessons learned](docs/lessons-learned.md): real bugs and how they were found
+
+## Stack
+
+| Area    | Choice                                                                                             |
+| ------- | -------------------------------------------------------------------------------------------------- |
+| Web     | React 19, Vite, Tailwind CSS v4, shadcn/ui, TanStack Router, TanStack Query, React Hook Form + Zod |
+| API     | Express 5 on AWS Lambda + API Gateway                                                              |
+| Data    | DynamoDB (per-user partition), S3 for photos                                                       |
+| Auth    | Cognito managed login, OIDC code flow + PKCE                                                       |
+| Infra   | AWS CDK, deployed by GitHub Actions (OIDC, no stored keys)                                         |
+| Hosting | Vercel (web), AWS (API)                                                                            |
+| Testing | Vitest, React Testing Library, MSW, Supertest, CDK assertions                                      |
+
 ## Layout
 
 ```
 apps/
-  api/        Express 5 REST API (tsx for dev, tsup for builds, Vitest + Supertest)
-  web/        React 19 + Vite frontend (Vitest + React Testing Library)
+  api/        Express API (runs locally as a server, in AWS on Lambda)
+  web/        React app
+    src/routes/        pages (file-based routing)
+    src/features/      feature UI (puzzles)
+    src/api/           API client + TanStack Query hooks
+    src/components/ui/ shadcn/ui components (generated, ours to edit)
 packages/
-  shared/     Types and Zod schemas shared by the API and every client
-infra/        AWS CDK: Cognito, DynamoDB, S3, Lambda, API Gateway, GitHub deploy role
-docs/         Deployment guide
+  shared/     Zod schemas and types shared by the API and clients
+infra/        AWS CDK app
+docs/         architecture, ADRs, deployment, lessons learned
 ```
-
-`packages/shared` is consumed as TypeScript source (no build step). Vite compiles it
-for the web app, and tsup bundles it into the API build. A future mobile app can import
-it the same way.
 
 ## Getting started
 
@@ -75,12 +96,9 @@ The API goes to AWS (CDK, deployed by GitHub Actions) and the web app to Vercel.
 
 ## Roadmap
 
-- [ ] **React practice:** add-puzzle form, puzzle detail view, delete, edit
-- [ ] Client-side routing (React Router) and data fetching (TanStack Query)
-- [x] Persistent storage (DynamoDB)
-- [x] Photo uploads API: presigned S3 POSTs, so clients upload straight to S3
-- [x] Deploy: API on Lambda + API Gateway via CDK, web on Vercel
-- [ ] **React practice:** photo picker and upload in the add-puzzle form
-- [x] Auth: Cognito managed login (OIDC + PKCE), JWT checked at API Gateway
-- [ ] Mobile app: Expo / React Native in `apps/mobile`, reusing `packages/shared`,
-      with the camera used to photograph finished puzzles
+- [x] Monorepo, CI, AWS + Vercel deployment
+- [x] Login (Cognito) with per-user data
+- [x] Puzzle list, detail and delete; add-puzzle form with photo upload
+- [ ] Edit a puzzle; sort and filter the list
+- [ ] Playwright smoke tests against the deployed app
+- [ ] Mobile app: Expo / React Native in `apps/mobile`, reusing `packages/shared`

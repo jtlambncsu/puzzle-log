@@ -3,3 +3,4 @@ coverage
 package-lock.json
 LICENSE
 cdk.out
+apps/web/src/routeTree.gen.ts
