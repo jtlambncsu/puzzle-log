@@ -1,6 +1,8 @@
 import { Link } from '@tanstack/react-router';
 import { PuzzleIcon } from 'lucide-react';
-import type { Puzzle } from '@puzzle-log/shared';
+import { puzzleStatus, type Puzzle } from '@puzzle-log/shared';
+import { Badge } from '@/components/ui/badge';
+import { STATUS_INFO } from '@/lib/status';
 import { Card, CardContent } from '@/components/ui/card';
 import { formatDate, puzzleSubtitle } from './format';
 
@@ -12,7 +14,10 @@ export function PuzzleCard({ puzzle }: { puzzle: Puzzle }) {
       className="rounded-xl focus-visible:ring-3 focus-visible:ring-ring/50 focus-visible:outline-none"
     >
       <Card className="h-full gap-0 overflow-hidden py-0 transition-shadow hover:shadow-md">
-        <PuzzlePhoto puzzle={puzzle} className="aspect-square" />
+        <div className="relative">
+          <PuzzlePhoto puzzle={puzzle} className="aspect-square" />
+          <StatusBadge puzzle={puzzle} className="absolute top-2 left-2" />
+        </div>
         <CardContent className="space-y-0.5 p-3">
           <h2 className="line-clamp-2 font-medium">{puzzle.title}</h2>
           {puzzleSubtitle(puzzle) && (
@@ -54,5 +59,18 @@ export function PuzzlePhoto({
       className={`w-full bg-muted object-cover ${className ?? ''}`}
       style={rotation ? { transform: `rotate(${rotation}deg)` } : undefined}
     />
+  );
+}
+
+/** Marks puzzles that aren't done yet; nothing for done ones, which are the norm. */
+export function StatusBadge({ puzzle, className }: { puzzle: Puzzle; className?: string }) {
+  const status = puzzleStatus(puzzle);
+  if (status === 'done') return null;
+  const { label, icon: Icon } = STATUS_INFO[status];
+  return (
+    <Badge variant="secondary" className={`gap-1 shadow-sm ${className ?? ''}`}>
+      <Icon aria-hidden />
+      {label}
+    </Badge>
   );
 }

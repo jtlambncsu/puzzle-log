@@ -2,13 +2,14 @@ import { createFileRoute, Link, notFound } from '@tanstack/react-router';
 import { useQuery, useSuspenseQuery } from '@tanstack/react-query';
 import {
   CircleCheckBigIcon,
+  HeartIcon,
   PackageSearchIcon,
   PlusIcon,
   ScanBarcodeIcon,
   TriangleAlertIcon,
 } from 'lucide-react';
 import { toast } from 'sonner';
-import { normalizeBarcode, type ProductInfo } from '@puzzle-log/shared';
+import { normalizeBarcode, puzzleStatus, type ProductInfo, type Puzzle } from '@puzzle-log/shared';
 import { barcodeQueryOptions, puzzlesQueryOptions, useApi, useUpdatePuzzle } from '@/api/queries';
 import { Button } from '@/components/ui/button';
 import { Card } from '@/components/ui/card';
@@ -54,9 +55,7 @@ function ScanResultPage() {
   if (exactMatches.length > 0) {
     return (
       <div className="space-y-4">
-        <Verdict tone="done" title="You've done this one">
-          {exactMatches.length > 1 && `${exactMatches.length} puzzles have this barcode.`}
-        </Verdict>
+        <MatchVerdict puzzles={exactMatches} />
         <ul className="grid grid-cols-2 gap-3">
           {exactMatches.map((puzzle) => (
             <li key={puzzle.id}>
@@ -131,9 +130,52 @@ function ScanResultPage() {
             Add it as a new puzzle
           </Link>
         </Button>
+        <Button asChild variant="outline" className="w-full">
+          <Link
+            to="/puzzles/new"
+            search={{
+              barcode,
+              status: 'wishlist',
+              title: product?.title,
+              brand: product?.brand,
+              pieces: product?.pieceCount,
+            }}
+          >
+            <HeartIcon aria-hidden />
+            Add to wishlist
+          </Link>
+        </Button>
         {scanAgain}
       </div>
     </div>
+  );
+}
+
+/**
+ * What matters in a shop: done it, already own it (don't buy it twice!), or want it.
+ * If several puzzles share the barcode, the most "finished" status wins.
+ */
+function MatchVerdict({ puzzles }: { puzzles: Puzzle[] }) {
+  const statuses = new Set(puzzles.map(puzzleStatus));
+  const extra = puzzles.length > 1 ? `${puzzles.length} puzzles have this barcode.` : undefined;
+  if (statuses.has('done')) {
+    return (
+      <Verdict tone="done" title="You've done this one">
+        {extra}
+      </Verdict>
+    );
+  }
+  if (statuses.has('owned')) {
+    return (
+      <Verdict tone="new" title="You already own this one">
+        It's waiting on your shelf. {extra}
+      </Verdict>
+    );
+  }
+  return (
+    <Verdict tone="wish" title="It's on your wishlist!">
+      Open it and tap “I bought it” once it's yours. {extra}
+    </Verdict>
   );
 }
 
@@ -142,19 +184,21 @@ function Verdict({
   title,
   children,
 }: {
-  tone: 'done' | 'new';
+  tone: 'done' | 'new' | 'wish';
   title: string;
   children?: React.ReactNode;
 }) {
-  const Icon = tone === 'done' ? CircleCheckBigIcon : TriangleAlertIcon;
+  const Icon = { done: CircleCheckBigIcon, new: TriangleAlertIcon, wish: HeartIcon }[tone];
   return (
     <div
       role="status"
-      className={
-        tone === 'done'
-          ? 'flex items-center gap-3 rounded-xl bg-emerald-50 p-4 text-emerald-900 dark:bg-emerald-950 dark:text-emerald-100'
-          : 'flex items-center gap-3 rounded-xl bg-amber-50 p-4 text-amber-900 dark:bg-amber-950 dark:text-amber-100'
-      }
+      className={`flex items-center gap-3 rounded-xl p-4 ${
+        {
+          done: 'bg-emerald-50 text-emerald-900 dark:bg-emerald-950 dark:text-emerald-100',
+          new: 'bg-amber-50 text-amber-900 dark:bg-amber-950 dark:text-amber-100',
+          wish: 'bg-pink-50 text-pink-900 dark:bg-pink-950 dark:text-pink-100',
+        }[tone]
+      }`}
     >
       <Icon className="size-8 shrink-0" aria-hidden />
       <div>

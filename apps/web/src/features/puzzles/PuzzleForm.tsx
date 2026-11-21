@@ -1,5 +1,5 @@
 import { useId, useRef, useState } from 'react';
-import { Controller, useForm } from 'react-hook-form';
+import { Controller, useForm, useWatch } from 'react-hook-form';
 import { zodResolver } from '@hookform/resolvers/zod';
 import { ImagePlusIcon, Loader2Icon, RotateCwIcon, XIcon } from 'lucide-react';
 import { MAX_UPLOAD_BYTES } from '@puzzle-log/shared';
@@ -12,6 +12,7 @@ import { nextRotation, type Rotation } from '@/lib/image';
 import { readPhotoDate } from '@/lib/photoDate';
 import { PhotoPreview } from './PhotoPreview';
 import { emptyPuzzleForm, puzzleFormSchema, type PuzzleFormValues } from './puzzleForm';
+import { StatusPicker } from './StatusPicker';
 import { TagInput } from './TagInput';
 
 interface PuzzleFormProps {
@@ -46,6 +47,8 @@ export function PuzzleForm({
     resolver: zodResolver(puzzleFormSchema),
     defaultValues,
   });
+  // Re-render only when status changes, to show "Finished on" just for finished puzzles.
+  const status = useWatch({ control, name: 'status' });
   const [photo, setPhoto] = useState<File>();
   const [photoError, setPhotoError] = useState<string>();
   const [rotation, setRotation] = useState<Rotation>(0);
@@ -101,6 +104,17 @@ export function PuzzleForm({
       )}
 
       <FieldGroup>
+        <Field>
+          <FieldLabel htmlFor="status">Status</FieldLabel>
+          <Controller
+            control={control}
+            name="status"
+            render={({ field }) => (
+              <StatusPicker id="status" value={field.value} onChange={field.onChange} />
+            )}
+          />
+        </Field>
+
         <Field data-invalid={!!errors.title}>
           <FieldLabel htmlFor="title">Title</FieldLabel>
           <Input
@@ -126,19 +140,21 @@ export function PuzzleForm({
             <FieldError errors={[errors.pieceCount]} />
           </Field>
 
-          <Field data-invalid={!!errors.completedAt}>
-            <FieldLabel htmlFor="completedAt">Finished on</FieldLabel>
-            <Input
-              id="completedAt"
-              type="date"
-              {...register('completedAt', {
-                // Once the user edits the date, it's theirs, not the photo's.
-                onChange: () => setPhotoDate(undefined),
-              })}
-            />
-            {photoDate && <FieldDescription>Date from photo</FieldDescription>}
-            <FieldError errors={[errors.completedAt]} />
-          </Field>
+          {status === 'done' && (
+            <Field data-invalid={!!errors.completedAt}>
+              <FieldLabel htmlFor="completedAt">Finished on</FieldLabel>
+              <Input
+                id="completedAt"
+                type="date"
+                {...register('completedAt', {
+                  // Once the user edits the date, it's theirs, not the photo's.
+                  onChange: () => setPhotoDate(undefined),
+                })}
+              />
+              {photoDate && <FieldDescription>Date from photo</FieldDescription>}
+              <FieldError errors={[errors.completedAt]} />
+            </Field>
+          )}
         </div>
 
         <Field data-invalid={!!errors.brand}>

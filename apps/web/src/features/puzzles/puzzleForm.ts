@@ -3,6 +3,8 @@ import {
   createPuzzleSchema,
   MAX_TAGS,
   normalizeBarcode,
+  puzzleStatus,
+  statusSchema,
   tagSchema,
   type CreatePuzzleInput,
   type Puzzle,
@@ -19,6 +21,7 @@ const { title, brand, notes } = createPuzzleSchema.shape;
  */
 export const puzzleFormSchema = z.object({
   title,
+  status: statusSchema,
   brand: brand.unwrap(),
   pieceCount: z
     .string()
@@ -37,6 +40,7 @@ export type PuzzleFormValues = z.infer<typeof puzzleFormSchema>;
 
 export const emptyPuzzleForm: PuzzleFormValues = {
   title: '',
+  status: 'done',
   brand: '',
   pieceCount: '',
   completedAt: '',
@@ -49,6 +53,7 @@ export const emptyPuzzleForm: PuzzleFormValues = {
 export function puzzleToFormValues(puzzle: Puzzle): PuzzleFormValues {
   return {
     title: puzzle.title,
+    status: puzzleStatus(puzzle),
     brand: puzzle.brand ?? '',
     pieceCount: puzzle.pieceCount ? String(puzzle.pieceCount) : '',
     completedAt: puzzle.completedAt ?? '',
@@ -62,9 +67,11 @@ export function puzzleToFormValues(puzzle: Puzzle): PuzzleFormValues {
 export function toCreatePuzzleInput(values: PuzzleFormValues): CreatePuzzleInput {
   return createPuzzleSchema.parse({
     title: values.title,
+    status: values.status,
     brand: values.brand.trim() || undefined,
     pieceCount: values.pieceCount ? Number(values.pieceCount) : undefined,
-    completedAt: values.completedAt || undefined,
+    // Only finished puzzles have a finished date.
+    completedAt: (values.status === 'done' && values.completedAt) || undefined,
     notes: values.notes.trim() || undefined,
     tags: values.tags.length ? values.tags : undefined,
     barcode: values.barcode || undefined,
@@ -79,6 +86,7 @@ export function toUpdatePuzzleInput(values: PuzzleFormValues): UpdatePuzzleInput
   const input = toCreatePuzzleInput(values);
   return {
     title: input.title,
+    status: input.status,
     brand: input.brand ?? null,
     pieceCount: input.pieceCount ?? null,
     completedAt: input.completedAt ?? null,

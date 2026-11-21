@@ -1,5 +1,6 @@
 import { createFileRoute, Link, useNavigate } from '@tanstack/react-router';
 import { z } from 'zod';
+import { statusSchema } from '@puzzle-log/shared';
 import { ImagesIcon } from 'lucide-react';
 import { toast } from 'sonner';
 import { useCreatePuzzle } from '@/api/queries';
@@ -18,6 +19,7 @@ const newPuzzleSearchSchema = z.object({
   brand: text,
   pieces: z.coerce.number().int().positive().optional().catch(undefined),
   barcode: text,
+  status: statusSchema.optional().catch(undefined),
 });
 
 export const Route = createFileRoute('/puzzles/new')({
@@ -48,6 +50,7 @@ function NewPuzzlePage() {
           brand: prefill.brand ?? '',
           pieceCount: prefill.pieces ? String(prefill.pieces) : '',
           barcode: prefill.barcode ?? '',
+          status: prefill.status ?? 'done',
         }}
         onSubmit={async (values, photo, rotation) => {
           try {

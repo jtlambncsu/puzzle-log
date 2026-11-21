@@ -37,6 +37,29 @@ describe('scanning a box', () => {
     expect(db.barcodeLookups).toEqual([]);
   });
 
+  it.each([
+    ['owned', 'You already own this one'],
+    ['wishlist', "It's on your wishlist!"],
+  ] as const)('warns when a %s puzzle has the barcode', async (status, heading) => {
+    db.add({ title: 'Cinderella', barcode: CINDERELLA, status });
+    renderApp(`/scan/${CINDERELLA}`);
+    expect(await screen.findByRole('heading', { name: heading })).toBeInTheDocument();
+  });
+
+  it('can add an unknown box to the wishlist', async () => {
+    db.products.set(CINDERELLA, { title: 'Ceaco Cinderella' });
+    const user = userEvent.setup();
+    renderApp(`/scan/${CINDERELLA}`);
+
+    await user.click(await screen.findByRole('link', { name: 'Add to wishlist' }));
+
+    expect(await screen.findByRole('radio', { name: 'Wishlist' })).toHaveAttribute(
+      'aria-checked',
+      'true',
+    );
+    expect(screen.getByLabelText('Title')).toHaveValue('Ceaco Cinderella');
+  });
+
   it('looks up unknown barcodes, suggests look-alikes, and saves the barcode on a pick', async () => {
     db.add({ title: 'Cinderella', brand: 'Ceaco' });
     db.add({ title: 'Starry Night' });

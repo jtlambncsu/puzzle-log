@@ -20,6 +20,8 @@ import { Button } from '@/components/ui/button';
 import { Skeleton } from '@/components/ui/skeleton';
 import { formatDate, puzzleSubtitle } from '@/features/puzzles/format';
 import { RotatablePhoto } from '@/features/puzzles/RotatablePhoto';
+import { StatusBadge } from '@/features/puzzles/PuzzleCard';
+import { StatusActions } from '@/features/puzzles/StatusActions';
 
 export const Route = createFileRoute('/puzzles/$puzzleId')({
   loader: async ({ context: { queryClient, api }, params }) => {
@@ -64,6 +66,7 @@ function PuzzleDetailPage() {
       <RotatablePhoto puzzle={puzzle} />
 
       <div>
+        <StatusBadge puzzle={puzzle} className="mb-2" />
         <div className="flex items-start justify-between gap-2">
           <h1 className="font-heading text-2xl font-semibold">{puzzle.title}</h1>
           <Button asChild variant="outline" size="sm" className="shrink-0">
@@ -80,6 +83,8 @@ function PuzzleDetailPage() {
           <p className="text-sm text-muted-foreground">Finished {formatDate(puzzle.completedAt)}</p>
         )}
       </div>
+
+      <StatusActions puzzle={puzzle} />
 
       {puzzle.tags && puzzle.tags.length > 0 && (
         <ul className="flex flex-wrap gap-1.5" aria-label="Tags">

@@ -10,6 +10,7 @@ import {
   RotateCwIcon,
   Trash2Icon,
 } from 'lucide-react';
+import type { PuzzleStatus } from '@puzzle-log/shared';
 import { puzzleKeys, savePuzzle, useAllTags, useApi } from '@/api/queries';
 import { Button } from '@/components/ui/button';
 import { Card } from '@/components/ui/card';
@@ -26,6 +27,7 @@ import {
   type BulkFormValues,
 } from './bulkForm';
 import { PhotoPreview } from './PhotoPreview';
+import { StatusPicker } from './StatusPicker';
 import { TagInput } from './TagInput';
 
 /** Uploads at once: fast on a good connection without saturating a phone's. */
@@ -53,6 +55,8 @@ export function BulkAddForm({ onDone }: { onDone: (result: BulkSaveResult) => vo
   const tagSuggestions = useAllTags();
   // Tags for the whole batch, e.g. picking 10 Star Wars photos and tagging them all at once.
   const [sharedTags, setSharedTags] = useState<string[]>([]);
+  const [sharedStatus, setSharedStatus] = useState<PuzzleStatus>('done');
+  const statusId = useId();
 
   const {
     control,
@@ -107,7 +111,7 @@ export function BulkAddForm({ onDone }: { onDone: (result: BulkSaveResult) => vo
       setStatus(id, { state: 'saving' });
       try {
         await savePuzzle(api, {
-          input: bulkItemToInput(item, sharedTags),
+          input: bulkItemToInput(item, { tags: sharedTags, status: sharedStatus }),
           photo: item.photo,
           rotation: rotations[id],
         });
@@ -155,6 +159,18 @@ export function BulkAddForm({ onDone }: { onDone: (result: BulkSaveResult) => vo
         }}
       />
       <FieldError errors={[errors.items?.root, errors.items]} />
+
+      {fields.length > 0 && (
+        <Field>
+          <FieldLabel htmlFor={statusId}>Status for all photos</FieldLabel>
+          <StatusPicker
+            id={statusId}
+            value={sharedStatus}
+            onChange={setSharedStatus}
+            disabled={isSubmitting}
+          />
+        </Field>
+      )}
 
       {fields.length > 0 && (
         <Field>

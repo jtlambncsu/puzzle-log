@@ -1,6 +1,18 @@
 import { z } from 'zod';
 import { barcodeSchema } from './barcode.js';
 
+/**
+ * Where a puzzle stands: finished, owned but not started (on the shelf), or wanted.
+ * Puzzles saved before statuses existed have none and count as done.
+ */
+export const PUZZLE_STATUSES = ['done', 'owned', 'wishlist'] as const;
+export type PuzzleStatus = (typeof PUZZLE_STATUSES)[number];
+export const statusSchema = z.enum(PUZZLE_STATUSES);
+
+export function puzzleStatus(puzzle: { status?: PuzzleStatus }): PuzzleStatus {
+  return puzzle.status ?? 'done';
+}
+
 export const MAX_TAGS = 20;
 
 /**
@@ -36,6 +48,7 @@ const imageKeySchema = z.string().regex(/^uploads\/[\w-]+\/[\w-]+$/, 'Invalid im
  */
 export const createPuzzleSchema = z.object({
   title: z.string().trim().min(1, 'Title is required').max(200),
+  status: statusSchema.optional(),
   brand: z.string().trim().max(100).optional(),
   pieceCount: z.number().int().positive().optional(),
   completedAt: z.iso.date().optional(),
@@ -59,6 +72,7 @@ const { title, brand, pieceCount, completedAt, notes, tags, barcode } = createPu
 export const updatePuzzleSchema = z
   .object({
     title: title.optional(),
+    status: statusSchema.optional(),
     brand: brand.unwrap().nullable().optional(),
     pieceCount: pieceCount.unwrap().nullable().optional(),
     completedAt: completedAt.unwrap().nullable().optional(),
