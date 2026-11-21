@@ -80,5 +80,7 @@ export default defineConfig({
     environment: 'jsdom',
     globals: true,
     setupFiles: './src/setupTests.ts',
+    // Absolute, so tests find their fixture files whichever folder Vitest runs from.
+    env: { FIXTURES_DIR: fileURLToPath(new URL('./src/test/fixtures', import.meta.url)) },
   },
 });

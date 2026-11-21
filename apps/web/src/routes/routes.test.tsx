@@ -114,8 +114,7 @@ describe('adding a puzzle', () => {
 
 /** Small real JPEGs from `src/test/fixtures`, so the actual EXIF library runs. */
 function fixturePhoto(name: string) {
-  // Vitest runs from apps/web (in jsdom, import.meta.url isn't a file path).
-  const bytes = readFileSync(join(process.cwd(), 'src/test/fixtures', name));
+  const bytes = readFileSync(join(process.env.FIXTURES_DIR!, name));
   return new File([bytes], name, { type: 'image/jpeg' });
 }
 
