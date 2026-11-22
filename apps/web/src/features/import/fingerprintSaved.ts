@@ -22,7 +22,8 @@ export async function fingerprintSavedPhotos(
   puzzles: readonly Puzzle[],
   onProgress: () => void,
 ) {
-  await mapWithConcurrency(puzzles, 3, async (puzzle) => {
+  // Two at a time, alongside the photos being checked: memory is tight on a phone.
+  await mapWithConcurrency(puzzles, 2, async (puzzle) => {
     try {
       const photo = await (await downloadPhoto(puzzle.imageUrl!)).blob();
       const look = await fingerprintImage(photo);

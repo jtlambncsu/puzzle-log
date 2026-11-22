@@ -74,3 +74,18 @@ That misses three cases:
 upright one on the record and compare by Hamming distance. That makes re-imports idempotent
 even when the bytes differ, because the phone re-encodes photos or the user rotated them. It
 also let us lazily backfill fingerprints for older records the first time the import runs."
+
+## Update: large albums on an iPhone
+
+Picking all 462 photos at once still failed. The iPhone picker prepared them for about
+30 seconds, then the app showed its start page again with no progress. The page most likely
+reloaded because Safari ran out of memory. Changes:
+
+- **The app recommends about 150 photos at a time.** Batches can overlap, since anything
+  already in the log is skipped.
+- **An import in progress is remembered in `localStorage`.** If the page reloads mid-import,
+  the next visit says which step stopped (checking or uploading). No message means the
+  photos never reached the page, which points at the picker itself.
+- **The progress bar says "Received N photos" straight away.**
+- **Less work runs at once:** photos are checked one at a time, and saved puzzles are
+  fingerprinted two at a time.

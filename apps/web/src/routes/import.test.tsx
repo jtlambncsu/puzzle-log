@@ -1,4 +1,4 @@
-import { screen, waitFor, within } from '@testing-library/react';
+import { cleanup, screen, waitFor, within } from '@testing-library/react';
 import userEvent from '@testing-library/user-event';
 import { readFileSync } from 'node:fs';
 import { join } from 'node:path';
@@ -46,6 +46,36 @@ describe('importing photos', () => {
     expect(await screen.findByText('3 photos → 0 puzzles')).toBeInTheDocument();
     expect(screen.getByText('3 imported before')).toBeInTheDocument();
     expect(screen.getByRole('button', { name: 'Import 0 puzzles' })).toBeDisabled();
+  });
+});
+
+describe('an import cut short', () => {
+  it('says so after the page reloads, and only once', async () => {
+    localStorage.setItem(
+      'puzzle-log:import-in-progress',
+      JSON.stringify({ step: 'checking', photos: 462 }),
+    );
+    renderApp('/puzzles/import');
+
+    expect(await screen.findByRole('alert')).toHaveTextContent(
+      'The last import stopped while checking 462 photos.',
+    );
+    cleanup();
+    renderApp('/puzzles/import');
+    expect(await screen.findByLabelText('Choose photos')).toBeInTheDocument();
+    expect(screen.queryByRole('alert')).not.toBeInTheDocument();
+  });
+
+  it("isn't reported after an import that finishes", async () => {
+    const user = userEvent.setup();
+    renderApp('/puzzles/import');
+    await user.upload(await screen.findByLabelText('Choose photos'), [
+      fixturePhoto('photo-no-exif.jpg'),
+    ]);
+    await user.click(await screen.findByRole('button', { name: 'Import 1 puzzle' }));
+    expect(await screen.findByText(/Imported 1 puzzle/)).toBeInTheDocument();
+    expect(localStorage.getItem('puzzle-log:import-in-progress')).toBeNull();
+    cleanup();
   });
 });
 
