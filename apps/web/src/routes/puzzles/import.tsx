@@ -7,6 +7,11 @@ import { puzzleKeys, puzzlesQueryOptions, savePuzzle, useApi } from '@/api/queri
 import { Button } from '@/components/ui/button';
 import { Progress } from '@/components/ui/progress';
 import { fingerprintSavedPhotos, needingFingerprints } from '@/features/import/fingerprintSaved';
+import {
+  clearImportInProgress,
+  markImportInProgress,
+  takeInterruptedImport,
+} from '@/features/import/interrupted';
 import { PhotoPreview } from '@/features/puzzles/PhotoPreview';
 import { mapWithConcurrency } from '@/lib/mapWithConcurrency';
 import {
@@ -46,11 +51,14 @@ function ImportPage() {
   const queryClient = useQueryClient();
   const { data: puzzles } = useSuspenseQuery(puzzlesQueryOptions(api));
   const [stage, setStage] = useState<Stage>({ name: 'pick' });
+  // Read once, on the first render after a reload that cut an import short.
+  const [interrupted] = useState(takeInterruptedImport);
   const importedSoFar = puzzles.filter((puzzle) => puzzle.importHashes?.length).length;
   const toReview = puzzles.filter((puzzle) => puzzle.needsReview).length;
 
   async function analyze(files: File[]) {
     if (!files.length) return;
+    markImportInProgress({ step: 'checking', photos: files.length });
     const toCheck = needingFingerprints(puzzles);
     setStage({
       name: 'analyzing',
@@ -65,14 +73,15 @@ function ImportPage() {
     await Promise.all([
       // Saved puzzles without a fingerprint get one, so they can be recognized below.
       fingerprintSavedPhotos(api, queryClient, toCheck, () => progress('checked')),
-      // Two at a time: decoding full-size photos is memory-hungry on a phone.
-      mapWithConcurrency(files, 2, async (file) => {
+      // One at a time: decoding full-size photos is memory-hungry on a phone.
+      mapWithConcurrency(files, 1, async (file) => {
         analyzed.push(await analyzePhoto(file));
         progress('done');
       }),
     ]);
     // The cached list now includes the fingerprints just saved.
     const saved = queryClient.getQueryData<Puzzle[]>(puzzleKeys.list()) ?? puzzles;
+    clearImportInProgress();
     setStage({
       name: 'ready',
       picked: files.length,
@@ -82,6 +91,7 @@ function ImportPage() {
 
   async function importGroups(groups: PhotoGroup[]) {
     setStage({ name: 'importing', done: 0, failed: 0, total: groups.length });
+    markImportInProgress({ step: 'uploading', photos: groups.length });
     let imported = 0;
     let failed = 0;
     // Two at a time: each upload decodes and shrinks a full-size photo first.
@@ -106,6 +116,7 @@ function ImportPage() {
       }
       setStage((s) => (s.name === 'importing' ? { ...s, done: imported, failed } : s));
     });
+    clearImportInProgress();
     await queryClient.invalidateQueries({ queryKey: puzzleKeys.list() });
     setStage({ name: 'finished', imported, failed });
   }
@@ -116,16 +127,31 @@ function ImportPage() {
 
       {stage.name === 'pick' && (
         <>
+          {interrupted && (
+            <div role="alert" className="rounded-lg border border-destructive/50 p-3 text-sm">
+              <p className="font-medium">
+                The last import stopped while{' '}
+                {interrupted.step === 'checking'
+                  ? `checking ${interrupted.photos} photos`
+                  : `uploading ${interrupted.photos} puzzles`}
+                .
+              </p>
+              <p className="text-muted-foreground">
+                The phone probably ran out of memory and reloaded the page. Try about 150 photos at
+                a time.{interrupted.step === 'uploading' && ' Puzzles already uploaded are kept.'}
+              </p>
+            </div>
+          )}
           {importedSoFar > 0 && (
             <p className="rounded-lg bg-muted/50 p-3 text-sm">
-              So far: {importedSoFar} imported, {toReview} waiting for review. Pick your whole album
-              again: anything already in your log is skipped.
+              So far: {importedSoFar} imported, {toReview} waiting for review.
             </p>
           )}
           <p className="text-sm text-muted-foreground">
-            Pick all your finished-puzzle photos at once (in the photo picker, open your album and
-            tap Select All, or drag across the photos). Duplicates are found on this phone before
-            anything is uploaded, and photos you've imported before are skipped.
+            Pick up to about 150 photos at a time; iPhones can run out of memory with more. Batches
+            can overlap: duplicates are found on this phone before anything is uploaded, and photos
+            already in your log are skipped. In the photo picker, drag across photos to select many
+            at once.
           </p>
           <label className="flex cursor-pointer flex-col items-center justify-center gap-2 rounded-xl border-2 border-dashed p-8 text-muted-foreground transition-colors hover:bg-muted/50">
             <ImagePlusIcon className="size-8" aria-hidden />
@@ -145,7 +171,7 @@ function ImportPage() {
         <div className="space-y-4">
           <ProgressBlock
             icon={<ScanSearchIcon aria-hidden />}
-            label={`Looking for duplicates: ${stage.done} of ${stage.total} photos`}
+            label={`Received ${stage.total} photos. Looking for duplicates: ${stage.done} of ${stage.total}`}
             value={stage.done / stage.total}
           />
           {stage.toCheck > 0 && (
