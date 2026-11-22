@@ -1,5 +1,6 @@
 import { describe, expect, it, vi } from 'vitest';
-import { apiKeyFromSsm, ClaudeSuggester, cleanSuggestion } from './claude.js';
+import { AnthropicClientProvider, apiKeyFromSsm } from '../anthropic.js';
+import { ClaudeSuggester, cleanSuggestion } from './claude.js';
 import { SuggestionUnavailableError } from './types.js';
 
 describe('cleanSuggestion', () => {
@@ -37,7 +38,7 @@ describe('ClaudeSuggester', () => {
         { status: 401, headers: { 'content-type': 'application/json' } },
       );
     });
-    const suggester = new ClaudeSuggester(getApiKey, { fetch });
+    const suggester = new ClaudeSuggester(new AnthropicClientProvider(getApiKey, { fetch }));
 
     await expect(suggester.suggest('https://photo', [])).rejects.toThrow(
       SuggestionUnavailableError,

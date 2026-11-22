@@ -212,15 +212,15 @@ redeploy on Vercel.
 
 What a stranger could make this cost, and what stops it:
 
-| Service         | What limits it                                                                                   | Worst case                                              |
-| --------------- | ------------------------------------------------------------------------------------------------ | ------------------------------------------------------- |
-| API Gateway     | Throttled to 10 requests a second, whoever sends them                                            | about $26 a month, only if hammered nonstop for a month |
-| Lambda          | Only runs for signed-in requests, the health check and CORS preflights, all within that throttle | about $6 a month in the same attack                     |
-| CloudWatch Logs | About 300 bytes per request; kept 1 month                                                        | about $4 a month in the same attack                     |
-| S3 photos       | Only you can upload (signed-in, 10 MB max, images only)                                          | your own photos: cents                                  |
-| DynamoDB        | On-demand, only reached by signed-in requests                                                    | cents                                                   |
-| Cognito         | Sign-up is off; billed per active user                                                           | free tier                                               |
-| Anthropic       | Prepaid credit with auto-reload off; only you can call it; at most 4,000 tokens a call           | the credit you bought, then it stops                    |
+| Service         | What limits it                                                                                                                                                              | Worst case                                              |
+| --------------- | --------------------------------------------------------------------------------------------------------------------------------------------------------------------------- | ------------------------------------------------------- |
+| API Gateway     | Throttled to 10 requests a second, whoever sends them                                                                                                                       | about $26 a month, only if hammered nonstop for a month |
+| Lambda          | Only runs for signed-in requests, the health check and CORS preflights, all within that throttle                                                                            | about $6 a month in the same attack                     |
+| CloudWatch Logs | About 300 bytes per request; kept 1 month                                                                                                                                   | about $4 a month in the same attack                     |
+| S3 photos       | Only you can upload (signed-in, 10 MB max, images only)                                                                                                                     | your own photos: cents                                  |
+| DynamoDB        | On-demand, only reached by signed-in requests                                                                                                                               | cents                                                   |
+| Cognito         | Sign-up is off; billed per active user                                                                                                                                      | free tier                                               |
+| Anthropic       | Prepaid credit with auto-reload off; only you can call it; at most 4,000 tokens per suggestion, and at most 4 web searches and 2 page reads per puzzle when finding details | the credit you bought, then it stops                    |
 
 Even a determined attack for a whole month stays around $35. The $5 budget's forecast alert
 would email you within a few days, and you can stop it entirely by deleting the API stage

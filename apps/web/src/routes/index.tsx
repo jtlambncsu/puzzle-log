@@ -7,6 +7,7 @@ import {
   ImagesIcon,
   PlusIcon,
   PuzzleIcon,
+  SearchCheckIcon,
   SearchXIcon,
 } from 'lucide-react';
 import { z } from 'zod';
@@ -61,6 +62,7 @@ function PuzzleListPage() {
   const filtered = !!q || !!tag || !!status;
 
   const toReview = puzzles.filter((puzzle) => puzzle.needsReview).length;
+  const withDetails = puzzles.filter((puzzle) => puzzle.details).length;
 
   function setSearch(next: { q?: string; tag?: string; status?: PuzzleStatus }) {
     // `replace` so each keystroke doesn't add a browser history entry.
@@ -79,21 +81,40 @@ function PuzzleListPage() {
             ({filtered ? `${matching.length} of ${puzzles.length}` : puzzles.length})
           </span>
         </h1>
-        <div className="flex">
-          <Button asChild variant="ghost" size="sm">
-            <Link to="/puzzles/import">
-              <FolderInputIcon aria-hidden />
-              Import
-            </Link>
-          </Button>
-          <Button asChild variant="ghost" size="sm">
-            <Link to="/stats">
-              <ChartColumnIcon aria-hidden />
-              Stats
-            </Link>
-          </Button>
-        </div>
+        {/* Icons only on a phone, where three labels don't fit next to the heading. */}
+        <nav className="flex" aria-label="More">
+          {(
+            [
+              ['/puzzles/import', FolderInputIcon, 'Import'],
+              ['/details', SearchCheckIcon, 'Details'],
+              ['/stats', ChartColumnIcon, 'Stats'],
+            ] as const
+          ).map(([to, Icon, label]) => (
+            <Button key={to} asChild variant="ghost" size="sm">
+              <Link to={to} aria-label={label}>
+                <Icon aria-hidden />
+                <span className="max-sm:hidden">{label}</span>
+              </Link>
+            </Button>
+          ))}
+        </nav>
       </div>
+
+      {withDetails > 0 && (
+        <Link
+          to="/details"
+          className="mb-3 flex items-center gap-3 rounded-xl border bg-muted/50 p-3 text-sm transition-colors hover:bg-muted"
+        >
+          <SearchCheckIcon className="size-5 shrink-0 text-muted-foreground" aria-hidden />
+          <span className="flex-1">
+            <span className="font-medium">
+              Details found for {withDetails} {withDetails === 1 ? 'puzzle' : 'puzzles'}
+            </span>
+            <span className="block text-muted-foreground">Check and apply them</span>
+          </span>
+          <ChevronRightIcon className="size-4 text-muted-foreground" aria-hidden />
+        </Link>
+      )}
 
       {toReview > 0 && (
         <Link
