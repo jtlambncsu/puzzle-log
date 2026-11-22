@@ -496,3 +496,32 @@ describe('AI suggestions for imported puzzles', () => {
     expect(bad.status).toBe(400);
   });
 });
+
+describe('photo fingerprints', () => {
+  it('stores one, and drops it when the photo is replaced', async () => {
+    const app = testApp({ photos: fakePhotos() });
+    const created = await request(app)
+      .post('/api/puzzles')
+      .set(alice)
+      .send({ title: 'x', imageKey: 'uploads/alice/a', photoFingerprint: '0123456789abcdef' });
+    expect(created.body.photoFingerprint).toBe('0123456789abcdef');
+
+    const notes = await request(app)
+      .patch(`/api/puzzles/${created.body.id}`)
+      .set(alice)
+      .send({ notes: 'hi' });
+    expect(notes.body.photoFingerprint).toBe('0123456789abcdef');
+
+    const rotated = await request(app)
+      .patch(`/api/puzzles/${created.body.id}`)
+      .set(alice)
+      .send({ imageKey: 'uploads/alice/b' });
+    expect(rotated.body.photoFingerprint).toBeUndefined();
+
+    const bad = await request(app)
+      .patch(`/api/puzzles/${created.body.id}`)
+      .set(alice)
+      .send({ photoFingerprint: 'xyz' });
+    expect(bad.status).toBe(400);
+  });
+});

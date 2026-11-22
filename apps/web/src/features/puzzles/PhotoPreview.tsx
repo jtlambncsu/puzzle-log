@@ -13,7 +13,7 @@ export function PhotoPreview({
   alt = 'Selected puzzle photo',
   rotation = 0,
 }: {
-  file: File;
+  file: Blob;
   className?: string;
   alt?: string;
   /** Preview-only rotation (CSS). The pixels are rotated when the photo is uploaded. */

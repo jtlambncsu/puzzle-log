@@ -107,6 +107,11 @@ export function puzzlesRouter(
       return;
     }
     let patch: PuzzlePatch = result.data;
+    // A new photo (e.g. rotated) no longer matches the old one's fingerprint. Dropping it
+    // lets the web app compute a fresh one, rather than keep a stale one.
+    if (patch.imageKey && patch.imageKey !== before.imageKey && !patch.photoFingerprint) {
+      patch = { ...patch, photoFingerprint: null };
+    }
     // A timer only runs on an in-progress puzzle, so moving it elsewhere (e.g. marking it
     // done) also stops the timer and saves the session.
     const stopsTimer =

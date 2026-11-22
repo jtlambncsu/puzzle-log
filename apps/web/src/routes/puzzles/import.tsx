@@ -2,31 +2,36 @@ import { useState } from 'react';
 import { createFileRoute, Link } from '@tanstack/react-router';
 import { useQueryClient, useSuspenseQuery } from '@tanstack/react-query';
 import { ImagePlusIcon, ScanSearchIcon, SplitIcon, UploadIcon } from 'lucide-react';
-import { IMPORTED_TITLE } from '@puzzle-log/shared';
+import { IMPORTED_TITLE, type Puzzle } from '@puzzle-log/shared';
 import { puzzleKeys, puzzlesQueryOptions, savePuzzle, useApi } from '@/api/queries';
 import { Button } from '@/components/ui/button';
 import { Progress } from '@/components/ui/progress';
+import { fingerprintSavedPhotos, needingFingerprints } from '@/features/import/fingerprintSaved';
 import { PhotoPreview } from '@/features/puzzles/PhotoPreview';
 import { mapWithConcurrency } from '@/lib/mapWithConcurrency';
 import {
   analyzePhoto,
+  existingFrom,
+  fingerprintToHex,
   groupPhotos,
   makeGroup,
   type AnalyzedPhoto,
   type GroupingResult,
+  type LooksImported,
   type PhotoGroup,
 } from '@/lib/photoImport';
 
 export const Route = createFileRoute('/puzzles/import')({
-  // The saved puzzles' import hashes tell us which photos were imported before.
+  // The saved puzzles' hashes and fingerprints tell us what's already imported, so refresh
+  // them even if a cached list exists (e.g. after importing on another device).
   loader: ({ context: { queryClient, api } }) =>
-    queryClient.ensureQueryData(puzzlesQueryOptions(api)),
+    queryClient.ensureQueryData({ ...puzzlesQueryOptions(api), revalidateIfStale: true }),
   component: ImportPage,
 });
 
 type Stage =
   | { name: 'pick' }
-  | { name: 'analyzing'; done: number; total: number }
+  | { name: 'analyzing'; done: number; total: number; checked: number; toCheck: number }
   | { name: 'ready'; picked: number; result: GroupingResult }
   | { name: 'importing'; done: number; failed: number; total: number }
   | { name: 'finished'; imported: number; failed: number };
@@ -41,25 +46,46 @@ function ImportPage() {
   const queryClient = useQueryClient();
   const { data: puzzles } = useSuspenseQuery(puzzlesQueryOptions(api));
   const [stage, setStage] = useState<Stage>({ name: 'pick' });
+  const importedSoFar = puzzles.filter((puzzle) => puzzle.importHashes?.length).length;
+  const toReview = puzzles.filter((puzzle) => puzzle.needsReview).length;
 
   async function analyze(files: File[]) {
     if (!files.length) return;
-    setStage({ name: 'analyzing', done: 0, total: files.length });
-    const analyzed: AnalyzedPhoto[] = [];
-    // Two at a time: decoding full-size photos is memory-hungry on a phone.
-    await mapWithConcurrency(files, 2, async (file) => {
-      analyzed.push(await analyzePhoto(file));
-      setStage((s) => (s.name === 'analyzing' ? { ...s, done: s.done + 1 } : s));
+    const toCheck = needingFingerprints(puzzles);
+    setStage({
+      name: 'analyzing',
+      done: 0,
+      total: files.length,
+      checked: 0,
+      toCheck: toCheck.length,
     });
-    const imported = new Set(puzzles.flatMap((puzzle) => puzzle.importHashes ?? []));
-    setStage({ name: 'ready', picked: files.length, result: groupPhotos(analyzed, imported) });
+    const progress = (key: 'done' | 'checked') =>
+      setStage((s) => (s.name === 'analyzing' ? { ...s, [key]: s[key] + 1 } : s));
+    const analyzed: AnalyzedPhoto[] = [];
+    await Promise.all([
+      // Saved puzzles without a fingerprint get one, so they can be recognized below.
+      fingerprintSavedPhotos(api, queryClient, toCheck, () => progress('checked')),
+      // Two at a time: decoding full-size photos is memory-hungry on a phone.
+      mapWithConcurrency(files, 2, async (file) => {
+        analyzed.push(await analyzePhoto(file));
+        progress('done');
+      }),
+    ]);
+    // The cached list now includes the fingerprints just saved.
+    const saved = queryClient.getQueryData<Puzzle[]>(puzzleKeys.list()) ?? puzzles;
+    setStage({
+      name: 'ready',
+      picked: files.length,
+      result: groupPhotos(analyzed, existingFrom(saved)),
+    });
   }
 
   async function importGroups(groups: PhotoGroup[]) {
     setStage({ name: 'importing', done: 0, failed: 0, total: groups.length });
     let imported = 0;
     let failed = 0;
-    await mapWithConcurrency(groups, 3, async (group) => {
+    // Two at a time: each upload decodes and shrinks a full-size photo first.
+    await mapWithConcurrency(groups, 2, async (group) => {
       try {
         await savePuzzle(api, {
           input: {
@@ -69,6 +95,8 @@ function ImportPage() {
             needsReview: true,
             // Every photo in the group, so none of them is imported again next time.
             importHashes: group.photos.map((photo) => photo.hash).slice(0, 50),
+            photoFingerprint:
+              group.best.fingerprints && fingerprintToHex(group.best.fingerprints[0]!),
           },
           photo: group.best.file,
         });
@@ -88,6 +116,12 @@ function ImportPage() {
 
       {stage.name === 'pick' && (
         <>
+          {importedSoFar > 0 && (
+            <p className="rounded-lg bg-muted/50 p-3 text-sm">
+              So far: {importedSoFar} imported, {toReview} waiting for review. Pick your whole album
+              again: anything already in your log is skipped.
+            </p>
+          )}
           <p className="text-sm text-muted-foreground">
             Pick all your finished-puzzle photos at once (in the photo picker, open your album and
             tap Select All, or drag across the photos). Duplicates are found on this phone before
@@ -108,11 +142,20 @@ function ImportPage() {
       )}
 
       {stage.name === 'analyzing' && (
-        <ProgressBlock
-          icon={<ScanSearchIcon aria-hidden />}
-          label={`Looking for duplicates: ${stage.done} of ${stage.total} photos`}
-          value={stage.done / stage.total}
-        />
+        <div className="space-y-4">
+          <ProgressBlock
+            icon={<ScanSearchIcon aria-hidden />}
+            label={`Looking for duplicates: ${stage.done} of ${stage.total} photos`}
+            value={stage.done / stage.total}
+          />
+          {stage.toCheck > 0 && (
+            <ProgressBlock
+              icon={<ScanSearchIcon aria-hidden />}
+              label={`Checking your saved puzzles (once): ${stage.checked} of ${stage.toCheck}`}
+              value={stage.checked / stage.toCheck}
+            />
+          )}
+        </div>
       )}
 
       {stage.name === 'ready' && (
@@ -197,9 +240,17 @@ function ReadyToImport({
   onImport: () => void;
   onCancel: () => void;
 }) {
-  const { groups, exactCopies, alreadyImported } = result;
+  const { groups, exactCopies, alreadyImported, looksImported } = result;
   const merged = groups.filter((group) => group.photos.length > 1);
   const reshoots = merged.reduce((sum, group) => sum + group.photos.length - 1, 0);
+
+  function importAnyway(match: LooksImported) {
+    onChange({
+      ...result,
+      looksImported: looksImported.filter((m) => m !== match),
+      groups: [...groups, makeGroup([match.photo])],
+    });
+  }
 
   function split(group: PhotoGroup) {
     const singles = group.photos.map((photo) => makeGroup([photo]));
@@ -216,6 +267,9 @@ function ReadyToImport({
           {reshoots > 0 && <li>{reshoots} extra shots of the same puzzle</li>}
           {exactCopies > 0 && <li>{exactCopies} exact copies</li>}
           {alreadyImported > 0 && <li>{alreadyImported} imported before</li>}
+          {looksImported.length > 0 && (
+            <li>{looksImported.length} that look like puzzles already in your log</li>
+          )}
         </ul>
       </div>
 
@@ -235,7 +289,7 @@ function ReadyToImport({
                   {group.photos.map((photo) => (
                     <PhotoPreview
                       key={photo.hash}
-                      file={photo.file}
+                      file={photo.thumbnail ?? photo.file}
                       alt=""
                       className={`aspect-square size-16 shrink-0 rounded-md ${
                         photo === group.best ? 'ring-2 ring-primary' : ''
@@ -251,6 +305,46 @@ function ReadyToImport({
                 >
                   <SplitIcon aria-hidden />
                   Split
+                </Button>
+              </li>
+            ))}
+          </ul>
+        </section>
+      )}
+
+      {looksImported.length > 0 && (
+        <section className="space-y-2" aria-labelledby="existing-heading">
+          <h2 id="existing-heading" className="font-medium">
+            Already in your log? ({looksImported.length})
+          </h2>
+          <p className="text-sm text-muted-foreground">
+            These look like a puzzle you've saved, so they're skipped. If one is really a different
+            puzzle, import it anyway.
+          </p>
+          <ul className="space-y-2">
+            {looksImported.map((match) => (
+              <li key={match.photo.hash} className="flex items-center gap-2 rounded-lg border p-2">
+                <PhotoPreview
+                  file={match.photo.thumbnail ?? match.photo.file}
+                  alt=""
+                  className="aspect-square size-16 shrink-0 rounded-md"
+                />
+                {match.puzzle.imageUrl && (
+                  <img
+                    src={match.puzzle.imageUrl}
+                    alt=""
+                    crossOrigin="anonymous"
+                    className="aspect-square size-16 shrink-0 rounded-md object-cover"
+                  />
+                )}
+                <span className="min-w-0 flex-1 truncate text-sm">{match.puzzle.title}</span>
+                <Button
+                  variant="ghost"
+                  size="sm"
+                  onClick={() => importAnyway(match)}
+                  aria-label={`Import anyway: not the same as “${match.puzzle.title}”`}
+                >
+                  Import anyway
                 </Button>
               </li>
             ))}

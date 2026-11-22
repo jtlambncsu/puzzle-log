@@ -191,7 +191,7 @@ export function useTimer() {
  * then reuses that cached response for this cross-origin fetch and blocks it ("Load failed").
  * Skipping the cache makes S3 answer this request with the CORS headers it needs.
  */
-async function downloadPhoto(url: string) {
+export async function downloadPhoto(url: string) {
   let res: Response;
   try {
     res = await fetch(url, { cache: 'no-store' });

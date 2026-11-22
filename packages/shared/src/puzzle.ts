@@ -62,6 +62,15 @@ export const sessionsSchema = z.array(timerSessionSchema).max(MAX_SESSIONS);
 /** SHA-256 (hex) of an imported photo file, to skip it if it's imported again. */
 export const importHashSchema = z.string().regex(/^[0-9a-f]{64}$/, 'Invalid import hash');
 
+/**
+ * How the puzzle's photo looks, as a 64-bit difference hash in hex (see the web app's
+ * `photoImport.ts`). Lets an import skip photos of puzzles already in the log, even when the
+ * file isn't byte-for-byte the same.
+ */
+export const photoFingerprintSchema = z
+  .string()
+  .regex(/^[0-9a-f]{16}$/, 'Invalid photo fingerprint');
+
 const imageKeySchema = z.string().regex(/^uploads\/[\w-]+\/[\w-]+$/, 'Invalid image key');
 
 /**
@@ -88,6 +97,7 @@ export const createPuzzleSchema = z.object({
   needsReview: z.literal(true).optional(),
   /** The photo files this puzzle came from (a merged duplicate adds its own). */
   importHashes: z.array(importHashSchema).max(50).optional(),
+  photoFingerprint: photoFingerprintSchema.optional(),
 });
 
 export type CreatePuzzleInput = z.infer<typeof createPuzzleSchema>;
@@ -104,6 +114,7 @@ const {
   sessions,
   needsReview,
   importHashes,
+  photoFingerprint,
 } = createPuzzleSchema.shape;
 
 /**
@@ -125,6 +136,7 @@ export const updatePuzzleSchema = z
     sessions: sessions.unwrap().nullable().optional(),
     needsReview: needsReview.unwrap().nullable().optional(),
     importHashes: importHashes.unwrap().nullable().optional(),
+    photoFingerprint: photoFingerprint.unwrap().nullable().optional(),
     imageKey: imageKeySchema.optional(),
   })
   .refine((patch) => Object.keys(patch).length > 0, 'Nothing to update');

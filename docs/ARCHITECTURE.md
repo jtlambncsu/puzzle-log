@@ -115,7 +115,8 @@ the timer keeps counting with the app closed. Marking a puzzle done stops its ti
 hash (exact copies) and a 64-bit difference hash of how it looks (re-shoots of the same
 puzzle). Similar photos taken minutes apart are grouped, with a chance to split a wrong
 group. One photo per group is uploaded, as a done puzzle marked `needsReview`, with the
-group's hashes saved so a re-import skips them. `/review` then goes through them one by one:
+group's hashes and a visual fingerprint saved, so a re-import skips them, even re-encoded
+or rotated ([ADR 0025](decisions/0025-recognizing-imported-photos.md)). `/review` then goes through them one by one:
 `POST /api/puzzles/:id/suggest` has Claude (vision + structured outputs) suggest a title,
 brand and tags, asked for a few puzzles ahead. The Anthropic key is read from SSM Parameter
 Store. See [ADR 0024](decisions/0024-album-import-ai-suggestions.md).
