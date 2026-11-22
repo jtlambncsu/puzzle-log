@@ -199,13 +199,55 @@ redeploy on Vercel.
 - **Tokens** are kept in the browser's localStorage so you stay signed in. Access tokens
   last 1 hour and refresh automatically for 30 days.
 
-- **CORS** allows any origin by default. Once you have a fixed domain you can set the
-  `ALLOWED_ORIGINS` GitHub variable (comma-separated, e.g. `https://puzzles.example.com`),
-  but that blocks Vercel preview URLs.
+- **CORS** only allows the web app's own URL (`webUrls`, by default
+  `https://puzzle-log-one.vercel.app`), for the API and for loading photos. Vercel preview
+  URLs aren't allowed, but they can't sign in anyway. To allow another origin, set the
+  `ALLOWED_ORIGINS` GitHub variable (comma-separated).
 - **AI suggestions** (Claude Sonnet 5.5) cost under 1 cent per reviewed photo, billed by Anthropic (not
   AWS), and only run for imported puzzles. The spend limit in the Anthropic console caps it.
 - **Cost:** for personal use this should fit in the AWS free tier or cost cents a month.
   Set up an **AWS Budget** with an email alert (e.g. $5/month) anyway.
+
+### Cost ceilings: the worst case
+
+What a stranger could make this cost, and what stops it:
+
+| Service         | What limits it                                                                                   | Worst case                                              |
+| --------------- | ------------------------------------------------------------------------------------------------ | ------------------------------------------------------- |
+| API Gateway     | Throttled to 10 requests a second, whoever sends them                                            | about $26 a month, only if hammered nonstop for a month |
+| Lambda          | Only runs for signed-in requests, the health check and CORS preflights, all within that throttle | about $6 a month in the same attack                     |
+| CloudWatch Logs | About 300 bytes per request; kept 1 month                                                        | about $4 a month in the same attack                     |
+| S3 photos       | Only you can upload (signed-in, 10 MB max, images only)                                          | your own photos: cents                                  |
+| DynamoDB        | On-demand, only reached by signed-in requests                                                    | cents                                                   |
+| Cognito         | Sign-up is off; billed per active user                                                           | free tier                                               |
+| Anthropic       | Prepaid credit with auto-reload off; only you can call it; at most 4,000 tokens a call           | the credit you bought, then it stops                    |
+
+Even a determined attack for a whole month stays around $35. The $5 budget's forecast alert
+would email you within a few days, and you can stop it entirely by deleting the API stage
+or the stack. The real way to a huge bill is someone taking over the AWS account itself
+(e.g. to mine cryptocurrency), which is why MFA on the root user matters most (below).
+
+### Account security checklist
+
+These protect the accounts the app runs on. Do them once:
+
+1. **AWS root user: turn on MFA.** Account menu (top right) → **Security credentials** →
+   **Assign MFA device**. A passkey or an authenticator app both work.
+2. **AWS root user: no access keys.** On the same page, **Access keys** should be empty.
+   (Nothing in this project uses them: GitHub deploys with OIDC.) Check from CloudShell:
+
+   ```bash
+   aws iam get-account-summary --query 'SummaryMap.{RootMFA:AccountMFAEnabled,RootAccessKeys:AccountAccessKeysPresent}'
+   ```
+
+   You want `RootMFA: 1` and `RootAccessKeys: 0`.
+
+3. **GitHub: two-factor authentication on.** Anyone who can push to `main` can deploy to
+   your AWS account, so the GitHub login is as important as the AWS one.
+4. **GitHub repo → Settings → Code security:** turn on **Dependabot alerts**, **Dependabot
+   security updates** and **Secret scanning** (all free).
+5. **Anthropic and Vercel: two-factor authentication on.**
+
 - **Data safety:** the DynamoDB table (with point-in-time recovery) and the photo bucket
   are kept even if you delete the stack.
 

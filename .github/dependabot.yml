@@ -1,0 +1,29 @@
+# Dependabot keeps dependencies and GitHub Actions current, so a deprecated runtime or a
+# vulnerable package doesn't sit unnoticed. Monthly and grouped, to stay at one or two PRs a
+# month; each one goes through the same CI as any change. Security fixes come separately,
+# as soon as they're published, once Dependabot security updates are on in the repo
+# settings (see docs/DEPLOYMENT.md).
+version: 2
+updates:
+  - package-ecosystem: npm
+    directory: /
+    schedule:
+      interval: monthly
+    groups:
+      minor-and-patch:
+        update-types: [minor, patch]
+    ignore:
+      # Major versions can change behaviour; they're done deliberately, not by a bot.
+      - dependency-name: '*'
+        update-types: ['version-update:semver-major']
+      # Pinned to 6.0 until typescript-eslint supports TypeScript 7 (see CLAUDE.md).
+      - dependency-name: typescript
+        update-types: ['version-update:semver-minor']
+
+  - package-ecosystem: github-actions
+    directory: /
+    schedule:
+      interval: monthly
+    groups:
+      actions:
+        patterns: ['*']

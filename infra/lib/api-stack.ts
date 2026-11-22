@@ -166,7 +166,8 @@ export class ApiStack extends Stack {
       authorizer: new HttpNoneAuthorizer(),
     });
 
-    // The API has no login yet, so throttling caps what a stranger could cost you.
+    // A cost ceiling: whatever anyone sends (even requests that fail sign-in), the API
+    // handles at most 10 a second, which bounds the monthly bill. See DEPLOYMENT.md.
     new HttpStage(this, 'DefaultStage', {
       httpApi: api,
       autoDeploy: true,
