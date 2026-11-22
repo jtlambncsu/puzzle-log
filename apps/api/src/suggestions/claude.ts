@@ -58,7 +58,9 @@ export class ClaudeSuggester implements PuzzleSuggester {
       const client = await this.getClient();
       response = await client.beta.messages.parse({
         model: MODEL,
-        max_tokens: 16000,
+        // A suggestion is a few dozen tokens. This cap bounds the worst case (about 4 cents
+        // on Sonnet) if a response ever ran long.
+        max_tokens: 4000,
         // A quick look is enough here: identifying a picture isn't a hard reasoning task.
         output_config: { effort: 'low', format: betaZodOutputFormat(suggestionSchema) },
         // If the model declines, the API retries on a fallback model in the same call.

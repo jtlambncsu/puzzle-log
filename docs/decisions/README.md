@@ -30,3 +30,4 @@ New decision? Copy [`0000-template.md`](0000-template.md) to the next number.
 | [0023](0023-puzzle-timer.md)                  | Puzzle timer: server clock, sessions, conditional writes                |
 | [0024](0024-album-import-ai-suggestions.md)   | Album import: duplicate detection in the browser, AI titles on review   |
 | [0025](0025-recognizing-imported-photos.md)   | Recognizing already-imported photos by look, in any orientation         |
+| [0026](0026-cost-and-security-guardrails.md)  | Cost ceilings and security guardrails                                   |
