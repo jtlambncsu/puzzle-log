@@ -6,7 +6,7 @@ import {
   useQueryClient,
 } from '@tanstack/react-query';
 import { useRouteContext } from '@tanstack/react-router';
-import type { CreatePuzzleInput, DetailsJob, Puzzle, UpdatePuzzleInput } from '@puzzle-log/shared';
+import type { CreatePuzzleInput, Puzzle, UpdatePuzzleInput } from '@puzzle-log/shared';
 import { compressImage, type Rotation } from '@/lib/image';
 import { today } from '@/lib/date';
 import { tagCounts } from '@/lib/search';
@@ -61,30 +61,6 @@ export const suggestionQueryOptions = (api: PuzzlesApi, queryClient: QueryClient
     },
     staleTime: Infinity,
     retry: false,
-    meta: { persist: false },
-  });
-
-/**
- * "Find details online" jobs. While a batch is running, this polls every 30 seconds; each
- * poll also makes the API save results of batches that have finished, so when a job
- * finishes, the puzzle list is refreshed to show the proposals.
- */
-export const detailsJobsQueryOptions = (api: PuzzlesApi, queryClient: QueryClient) =>
-  queryOptions({
-    queryKey: ['detailsJobs'] as const,
-    queryFn: async () => {
-      const before = queryClient.getQueryData<DetailsJob[]>(['detailsJobs']);
-      const jobs = await api.listDetailsJobs();
-      const finished = jobs.some(
-        (job) =>
-          job.status === 'done' &&
-          before?.find((old) => old.id === job.id)?.status === 'processing',
-      );
-      if (finished) await queryClient.invalidateQueries({ queryKey: puzzleKeys.list() });
-      return jobs;
-    },
-    refetchInterval: (query) =>
-      query.state.data?.some((job) => job.status === 'processing') ? 30_000 : false,
     meta: { persist: false },
   });
 

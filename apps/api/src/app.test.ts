@@ -4,7 +4,6 @@ import { createApp, type AppDeps } from './app.js';
 import type { ResolveUser } from './auth.js';
 import type { PhotoStorage } from './photos/types.js';
 import { SuggestionUnavailableError, type PuzzleSuggester } from './suggestions/types.js';
-import type { DetailsFinder, DetailsRequest, DetailsResult } from './details/types.js';
 
 /** Tests pick the caller with a header; no header means not signed in. */
 const userFromTestHeader: ResolveUser = (req) => req.header('x-test-user');
@@ -24,7 +23,6 @@ function fakePhotos(): PhotoStorage & { delete: ReturnType<typeof vi.fn> } {
       fields: {},
     }),
     getViewUrl: async (key) => `https://bucket.example/${key}?signed`,
-    read: async () => ({ bytes: new Uint8Array([0xff, 0xd8, 0xff]), contentType: 'image/jpeg' }),
     delete: vi.fn(async () => {}),
   };
 }
@@ -525,127 +523,5 @@ describe('photo fingerprints', () => {
       .set(alice)
       .send({ photoFingerprint: 'xyz' });
     expect(bad.status).toBe(400);
-  });
-});
-
-describe('finding details online', () => {
-  function detailsApp() {
-    const batches = new Map<string, { done: boolean; results: DetailsResult[] }>();
-    const finder: DetailsFinder & { requests: DetailsRequest[][] } = {
-      requests: [],
-      async start(requests) {
-        this.requests.push(requests);
-        const id = `batch_${batches.size + 1}`;
-        batches.set(id, { done: false, results: [] });
-        return id;
-      },
-      async isDone(id) {
-        return batches.get(id)!.done;
-      },
-      async *results(id) {
-        yield* batches.get(id)!.results;
-      },
-    };
-    const productLookup = { lookup: vi.fn(async () => ({ title: 'Disney Castle 1000 Piece' })) };
-    const app = testApp({ photos: fakePhotos(), detailsFinder: finder, productLookup });
-    return { app, finder, batches };
-  }
-
-  async function addPuzzle(app: ReturnType<typeof testApp>, title: string, user = alice) {
-    const res = await request(app)
-      .post('/api/puzzles')
-      .set(user)
-      .send({ title, imageKey: `uploads/${user['x-test-user']}/p` });
-    return res.body.id as string;
-  }
-
-  it('sends photos to a batch, then saves proposals once it finishes', async () => {
-    const { app, finder, batches } = detailsApp();
-    const id = await addPuzzle(app, 'Castle at Night');
-
-    const created = await request(app)
-      .post('/api/details/jobs')
-      .set(alice)
-      .send({ puzzleIds: [id] });
-    expect(created.status).toBe(201);
-    expect(finder.requests[0]![0]).toMatchObject({ puzzleId: id, title: 'Castle at Night' });
-    expect(finder.requests[0]![0]!.photo.bytes.length).toBeGreaterThan(0);
-
-    // Still running: listed as processing.
-    const waiting = await request(app).get('/api/details/jobs').set(alice);
-    expect(waiting.body).toMatchObject([{ id: 'batch_1', status: 'processing' }]);
-
-    batches.set('batch_1', {
-      done: true,
-      results: [
-        {
-          puzzleId: id,
-          outcome: {
-            status: 'found',
-            proposal: { title: 'Disney Castle', barcode: '4005556165001', tags: [], sources: [] },
-          },
-          costUsd: 0.05,
-        },
-      ],
-    });
-    const finished = await request(app).get('/api/details/jobs').set(alice);
-    expect(finished.body).toMatchObject([{ status: 'done', summary: { found: 1, costUsd: 0.05 } }]);
-
-    const puzzle = await request(app).get(`/api/puzzles/${id}`).set(alice);
-    expect(puzzle.body.details.proposal).toMatchObject({
-      title: 'Disney Castle',
-      barcodeCheck: 'confirmed',
-    });
-
-    // Applying (or dismissing) a proposal removes it.
-    const applied = await request(app)
-      .patch(`/api/puzzles/${id}`)
-      .set(alice)
-      .send({ title: 'Disney Castle', details: null });
-    expect(applied.body.details).toBeUndefined();
-    expect(applied.body.detailsSearchedAt).toBeDefined();
-  });
-
-  it("checks the request, and keeps users' jobs apart", async () => {
-    const { app } = detailsApp();
-    const mine = await addPuzzle(app, 'Mine');
-    const noPhoto = (await request(app).post('/api/puzzles').set(alice).send({ title: 'x' })).body
-      .id as string;
-    const theirs = await addPuzzle(app, 'Theirs', bob);
-
-    const post = (body: object) => request(app).post('/api/details/jobs').set(alice).send(body);
-    expect((await post({ puzzleIds: [] })).status).toBe(400);
-    expect((await post({ puzzleIds: Array(11).fill(mine) })).status).toBe(400);
-    expect((await post({ puzzleIds: [noPhoto] })).status).toBe(400);
-    expect((await post({ puzzleIds: [theirs] })).status).toBe(400);
-    expect((await post({ puzzleIds: [mine] })).status).toBe(201);
-
-    expect((await request(app).get('/api/details/jobs').set(bob)).body).toEqual([]);
-    expect(
-      (
-        await request(app)
-          .post('/api/details/jobs')
-          .send({ puzzleIds: [mine] })
-      ).status,
-    ).toBe(401);
-    // Clients can't set a proposal themselves, only remove one.
-    const forged = await request(app)
-      .patch(`/api/puzzles/${mine}`)
-      .set(alice)
-      .send({ details: { proposal: { title: 'x' } } });
-    expect(forged.status).toBe(400);
-  });
-
-  it('answers 501 when not configured', async () => {
-    const app = testApp({ photos: fakePhotos() });
-    const id = await addPuzzle(app, 'x');
-    expect(
-      (
-        await request(app)
-          .post('/api/details/jobs')
-          .set(alice)
-          .send({ puzzleIds: [id] })
-      ).status,
-    ).toBe(501);
   });
 });

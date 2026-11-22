@@ -1,9 +1,4 @@
-import type {
-  CreatePuzzleInput,
-  Puzzle,
-  PuzzleDetails,
-  UpdatePuzzleInput,
-} from '@puzzle-log/shared';
+import type { CreatePuzzleInput, Puzzle, UpdatePuzzleInput } from '@puzzle-log/shared';
 
 /**
  * Storage abstraction so routes don't care whether data lives in memory or DynamoDB.
@@ -29,11 +24,7 @@ export interface PuzzleStore {
 }
 
 /** A client's update plus the field only the API itself may change. */
-export type PuzzlePatch = Omit<UpdatePuzzleInput, 'details'> & {
-  timerStartedAt?: string | null;
-  details?: PuzzleDetails | null;
-  detailsSearchedAt?: string;
-};
+export type PuzzlePatch = UpdatePuzzleInput & { timerStartedAt?: string | null };
 
 export interface TimerExpectation {
   timerStartedAt: string | null;

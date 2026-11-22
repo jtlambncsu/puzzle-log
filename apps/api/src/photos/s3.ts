@@ -39,14 +39,6 @@ export class S3PhotoStorage implements PhotoStorage {
     });
   }
 
-  async read(key: string) {
-    const { Body, ContentType } = await this.client.send(
-      new GetObjectCommand({ Bucket: this.bucket, Key: key }),
-    );
-    if (!Body) throw new Error(`Photo ${key} is empty`);
-    return { bytes: await Body.transformToByteArray(), contentType: ContentType ?? 'image/jpeg' };
-  }
-
   async delete(key: string) {
     await this.client.send(new DeleteObjectCommand({ Bucket: this.bucket, Key: key }));
   }

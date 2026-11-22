@@ -3,8 +3,6 @@ import { setupServer } from 'msw/node';
 import {
   normalizeBarcode,
   type BarcodeLookupResult,
-  type CreateDetailsJobInput,
-  type DetailsJob,
   type CreatePuzzleInput,
   type ProductInfo,
   type PuzzleSuggestion,
@@ -27,9 +25,7 @@ export const db = {
   /** What the fake AI suggests, by puzzle id. Missing means the suggestion fails (503). */
   suggestions: new Map<string, PuzzleSuggestion>(),
   suggestCalls: [] as string[],
-  detailsJobs: [] as DetailsJob[],
   reset() {
-    this.detailsJobs = [];
     this.suggestions.clear();
     this.suggestCalls = [];
     this.products.clear();
@@ -128,22 +124,6 @@ export const handlers = [
     const updated = { ...existing, ...suggestion };
     db.puzzles.set(id, updated);
     return HttpResponse.json(updated);
-  }),
-
-  http.get('/api/details/jobs', () => HttpResponse.json([...db.detailsJobs].reverse())),
-
-  http.post('/api/details/jobs', async ({ request }) => {
-    const { puzzleIds } = (await request.json()) as CreateDetailsJobInput;
-    const job: DetailsJob = {
-      id: `batch_${db.detailsJobs.length + 1}`,
-      userId: 'test-user',
-      puzzleIds,
-      createdAt: new Date().toISOString(),
-      status: 'processing',
-      processedIds: [],
-    };
-    db.detailsJobs.push(job);
-    return HttpResponse.json(job, { status: 201 });
   }),
 
   // Downloading a stored photo (to rotate it).
