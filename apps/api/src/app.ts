@@ -10,6 +10,10 @@ import { InMemoryPuzzleStore } from './stores/memory.js';
 import type { PuzzleStore } from './stores/types.js';
 import type { PhotoStorage } from './photos/types.js';
 import type { PuzzleSuggester } from './suggestions/types.js';
+import { cachedLookup } from './barcodes/cachedLookup.js';
+import { InMemoryDetailsJobStore } from './details/jobStores.js';
+import type { DetailsFinder, DetailsJobStore } from './details/types.js';
+import { detailsRouter } from './routes/details.js';
 import { requireUser, type ResolveUser } from './auth.js';
 
 export interface AppDeps {
@@ -25,6 +29,9 @@ export interface AppDeps {
   barcodeCache?: BarcodeCache;
   /** Names imported puzzles from their photos. Omit to turn suggestions off. */
   suggester?: PuzzleSuggester;
+  /** Finds puzzles' published details online. Omit to turn it off. */
+  detailsFinder?: DetailsFinder;
+  detailsJobs?: DetailsJobStore;
   /** The time, for the puzzle timer. Tests pass a fixed clock. */
   clock?: () => Date;
 }
@@ -37,6 +44,8 @@ export function createApp({
   productLookup = new UpcItemDbLookup(),
   barcodeCache = new InMemoryBarcodeCache(),
   suggester,
+  detailsFinder,
+  detailsJobs = new InMemoryDetailsJobStore(),
   clock = () => new Date(),
 }: AppDeps) {
   const app = express();
@@ -54,6 +63,18 @@ export function createApp({
   app.use('/api/puzzles', requireUser(resolveUser), puzzlesRouter(store, photos, clock, suggester));
   app.use('/api/uploads', requireUser(resolveUser), uploadsRouter(photos));
   app.use('/api/barcodes', requireUser(resolveUser), barcodesRouter(productLookup, barcodeCache));
+  app.use(
+    '/api/details',
+    requireUser(resolveUser),
+    detailsRouter({
+      finder: detailsFinder,
+      jobs: detailsJobs,
+      puzzles: store,
+      photos,
+      findProduct: cachedLookup(productLookup, barcodeCache),
+      now: clock,
+    }),
+  );
 
   app.use('/api', (_req, res) => {
     res.status(404).json({ error: 'Not found' });

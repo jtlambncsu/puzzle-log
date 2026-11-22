@@ -1,8 +1,7 @@
-import Anthropic, { type ClientOptions } from '@anthropic-ai/sdk';
 import { betaZodOutputFormat } from '@anthropic-ai/sdk/helpers/beta/zod';
-import { GetParameterCommand, SSMClient } from '@aws-sdk/client-ssm';
 import { z } from 'zod';
 import { MAX_TAGS, tagSchema, uniqueTags, type PuzzleSuggestion } from '@puzzle-log/shared';
+import type { AnthropicClientProvider } from '../anthropic.js';
 import { SuggestionUnavailableError, type PuzzleSuggester } from './types.js';
 
 /**
@@ -31,31 +30,12 @@ const suggestionSchema = z.object({
  * this Lambda.
  */
 export class ClaudeSuggester implements PuzzleSuggester {
-  private client?: Promise<Anthropic>;
-
-  /**
-   * @param getApiKey Loads the key on first use (e.g. from SSM), so a cold start stays fast.
-   * @param clientOptions Extra SDK options (tests pass a fake `fetch`).
-   */
-  constructor(
-    private readonly getApiKey: () => Promise<string>,
-    private readonly clientOptions: ClientOptions = {},
-  ) {}
-
-  private getClient() {
-    this.client ??= this.getApiKey().then(
-      // API Gateway gives up after 30 seconds, so one 25-second try, no retries.
-      (apiKey) => new Anthropic({ timeout: 25_000, maxRetries: 0, ...this.clientOptions, apiKey }),
-    );
-    // Don't cache a failure (e.g. the key wasn't set up yet): try again next time.
-    this.client.catch(() => (this.client = undefined));
-    return this.client;
-  }
+  constructor(private readonly anthropic: AnthropicClientProvider) {}
 
   async suggest(imageUrl: string, knownTags: readonly string[]): Promise<PuzzleSuggestion> {
     let response;
     try {
-      const client = await this.getClient();
+      const client = await this.anthropic.get();
       response = await client.beta.messages.parse({
         model: MODEL,
         // A suggestion is a few dozen tokens. This cap bounds the worst case (about 4 cents
@@ -83,9 +63,7 @@ export class ClaudeSuggester implements PuzzleSuggester {
         ],
       });
     } catch (error) {
-      // A rejected key may have been replaced since it was loaded: load it again next time,
-      // instead of failing until AWS happens to start a fresh Lambda instance.
-      if (error instanceof Anthropic.AuthenticationError) this.client = undefined;
+      this.anthropic.noteError(error);
       throw new SuggestionUnavailableError('The suggestion service is unavailable', {
         cause: error,
       });
@@ -110,18 +88,5 @@ export function cleanSuggestion(output: z.infer<typeof suggestionSchema>): Puzzl
     title: output.title.trim().slice(0, 200) || 'Untitled puzzle',
     ...(brand && { brand }),
     tags: uniqueTags(tags).slice(0, MAX_TAGS),
-  };
-}
-
-/** Reads the API key from an SSM SecureString parameter (set up once in the AWS console). */
-export function apiKeyFromSsm(parameterName: string, ssm = new SSMClient({})) {
-  return async () => {
-    const { Parameter } = await ssm.send(
-      new GetParameterCommand({ Name: parameterName, WithDecryption: true }),
-    );
-    // Trimmed: a key pasted on a phone easily picks up a space or line break.
-    const apiKey = Parameter?.Value?.trim();
-    if (!apiKey) throw new Error(`Parameter ${parameterName} is empty`);
-    return apiKey;
   };
 }

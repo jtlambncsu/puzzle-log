@@ -1,6 +1,8 @@
 import type {
   BarcodeLookupResult,
+  CreateDetailsJobInput,
   CreatePuzzleInput,
+  DetailsJob,
   Puzzle,
   StartTimerInput,
   UpdatePuzzleInput,
@@ -84,6 +86,14 @@ export function createPuzzlesApi(getAccessToken: GetAccessToken) {
     /** Asks the API to name an imported puzzle from its photo (AI). */
     suggest: (id: string) =>
       request<Puzzle>(`/puzzles/${encodeURIComponent(id)}/suggest`, { method: 'POST' }),
+    /** Sends up to 10 puzzles to a "find details online" batch. */
+    createDetailsJob: (puzzleIds: string[]) =>
+      request<DetailsJob>('/details/jobs', {
+        method: 'POST',
+        body: JSON.stringify({ puzzleIds } satisfies CreateDetailsJobInput),
+      }),
+    /** Recent jobs. Also saves the results of batches that have finished. */
+    listDetailsJobs: () => request<DetailsJob[]>('/details/jobs'),
     remove: (id: string) =>
       request<void>(`/puzzles/${encodeURIComponent(id)}`, { method: 'DELETE' }),
     lookupBarcode: (barcode: string) =>
