@@ -1,6 +1,6 @@
 # 0027. Find details online with web search in the Message Batches API
 
-- **Status:** Accepted
+- **Status:** Rejected after a trial and rolled back (2026-11-22)
 - **Date:** 2026-11-22
 
 ## Context
@@ -82,3 +82,28 @@ A strict 'report' tool forces a structured answer. Results land as proposals tha
 applies field by field, and barcodes are cross-checked against a product database. There's
 no queue or scheduler: the client's polling drives result processing, in time-boxed chunks
 that resume where they left off."
+
+## Trial result and rollback
+
+The owner ran the 10-puzzle trial on real data. It found details for **3 of 10** puzzles.
+Two of those three were essentially the same puzzle, proposed with **different barcodes**:
+exactly the error the barcode check was meant to catch, and one a reviewer can't easily
+settle from a phone. At that hit rate, the cost and the review effort weren't worth it, so
+the feature was reverted in full: routes, batch code, the `DetailsJobs` table and the page.
+Puzzles keep any fields that were applied during the trial.
+
+What this suggests for a next attempt:
+
+- Finished-puzzle photos of popular licensed art (Disney, Thomas Kinkade) match many
+  near-identical products and editions, so search can't tell them apart. **Scanning the
+  box** is the reliable source of a barcode, and the barcode then identifies the product.
+- A trial was the right first step: 10 puzzles cost little and answered the question
+  before the full run did.
+
+## Explaining the rollback in an interview
+
+"I shipped it behind a deliberately small trial with measured cost and accuracy. The
+numbers came back at a 30% hit rate, with conflicting barcodes for near-identical
+editions, so I reverted it cleanly and kept the decision record. The data showed the
+problem is identification, not plumbing, and the reliable fix is scanning the physical
+box."

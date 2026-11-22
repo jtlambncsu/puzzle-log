@@ -1,6 +1,5 @@
 import { z } from 'zod';
 import { barcodeSchema } from './barcode.js';
-import type { PuzzleDetails } from './details.js';
 
 /**
  * Where a puzzle stands: finished, being worked on, owned but not started (on the shelf), or
@@ -138,8 +137,6 @@ export const updatePuzzleSchema = z
     needsReview: needsReview.unwrap().nullable().optional(),
     importHashes: importHashes.unwrap().nullable().optional(),
     photoFingerprint: photoFingerprint.unwrap().nullable().optional(),
-    /** Applying or dismissing a details proposal removes it. */
-    details: z.null().optional(),
     imageKey: imageKeySchema.optional(),
   })
   .refine((patch) => Object.keys(patch).length > 0, 'Nothing to update');
@@ -156,10 +153,6 @@ export interface Puzzle extends CreatePuzzleInput {
    * sets this, using its own clock, through the timer endpoints.
    */
   timerStartedAt?: string;
-  /** Details found online, waiting to be applied or dismissed (set by the API). */
-  details?: PuzzleDetails;
-  /** When details were last searched for, found or not (set by the API). */
-  detailsSearchedAt?: string;
   /** Short-lived URL for viewing the photo, added by the API when `imageKey` is set. */
   imageUrl?: string;
 }

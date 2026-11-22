@@ -63,16 +63,6 @@ export class ApiStack extends Stack {
       removalPolicy: RemovalPolicy.DESTROY,
     });
 
-    // "Find details online" batch jobs: which puzzles went into which Anthropic batch. The
-    // results themselves are saved on the puzzles, so losing this table only loses the job
-    // history; deleted with the stack.
-    const detailsJobs = new TableV2(this, 'DetailsJobs', {
-      partitionKey: { name: 'userId', type: AttributeType.STRING },
-      sortKey: { name: 'id', type: AttributeType.STRING },
-      billing: Billing.onDemand(),
-      removalPolicy: RemovalPolicy.DESTROY,
-    });
-
     const photos = new Bucket(this, 'Photos', {
       blockPublicAccess: BlockPublicAccess.BLOCK_ALL,
       encryption: BucketEncryption.S3_MANAGED,
@@ -109,7 +99,6 @@ export class ApiStack extends Stack {
         PUZZLES_TABLE: table.tableName,
         PHOTOS_BUCKET: photos.bucketName,
         BARCODE_TABLE: barcodeLookups.tableName,
-        DETAILS_JOBS_TABLE: detailsJobs.tableName,
         ANTHROPIC_KEY_PARAMETER: anthropicKey.parameterName,
         ...(props.allowedOrigins?.length && { ALLOWED_ORIGINS: props.allowedOrigins.join(',') }),
         NODE_OPTIONS: '--enable-source-maps',
@@ -128,7 +117,6 @@ export class ApiStack extends Stack {
     });
 
     table.grantReadWriteData(fn);
-    detailsJobs.grantReadWriteData(fn);
     barcodeLookups.grantReadWriteData(fn);
     photos.grantPut(fn); // signing a presigned POST requires the signer to be allowed to PUT
     photos.grantRead(fn);

@@ -121,16 +121,6 @@ or rotated ([ADR 0025](decisions/0025-recognizing-imported-photos.md)). `/review
 brand and tags, asked for a few puzzles ahead. The Anthropic key is read from SSM Parameter
 Store. See [ADR 0024](decisions/0024-album-import-ai-suggestions.md).
 
-### Finding details online
-
-`/details` sends puzzles, 10 per batch with their photos, to the Message Batches API.
-Claude Sonnet searches the web (at most 4 searches and 2 page reads per puzzle) and reports
-the official title, brand, piece count, barcode and tags with a strict tool call. The web
-page polls `GET /api/details/jobs` while a batch runs. Once it has ended, that request saves
-the results onto the puzzles as proposals, in time-boxed chunks. Barcodes are cross-checked
-against UPCitemdb. The owner applies or dismisses each proposal field by field. See
-[ADR 0027](decisions/0027-find-details-online.md).
-
 ## Local development
 
 `npm run dev` runs the API on :3001 (in-memory storage, no login, uploads off) and the web

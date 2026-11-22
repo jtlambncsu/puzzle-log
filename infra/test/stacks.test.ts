@@ -157,21 +157,6 @@ describe('ApiStack', () => {
     });
   });
 
-  it('stores details jobs per user, and lets the Lambda use them', () => {
-    template.hasResourceProperties('AWS::DynamoDB::GlobalTable', {
-      KeySchema: [
-        { AttributeName: 'userId', KeyType: 'HASH' },
-        { AttributeName: 'id', KeyType: 'RANGE' },
-      ],
-      Replicas: Match.anyValue(),
-      AttributeDefinitions: Match.anyValue(),
-      BillingMode: 'PAY_PER_REQUEST',
-    });
-    template.hasResourceProperties('AWS::Lambda::Function', {
-      Environment: { Variables: Match.objectLike({ DETAILS_JOBS_TABLE: Match.anyValue() }) },
-    });
-  });
-
   it('throttles the API', () => {
     template.hasResourceProperties('AWS::ApiGatewayV2::Stage', {
       DefaultRouteSettings: Match.objectLike({ ThrottlingRateLimit: 10 }),
