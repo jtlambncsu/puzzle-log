@@ -1,16 +1,35 @@
 import { describe, expect, it } from 'vitest';
-import { fingerprintDistance, groupPhotos, type AnalyzedPhoto } from './photoImport';
+import type { Puzzle } from '@puzzle-log/shared';
+import {
+  existingFrom,
+  fingerprintDistance,
+  fingerprintToHex,
+  groupPhotos,
+  lookDistance,
+  type AnalyzedPhoto,
+} from './photoImport';
 
+/** A test photo. `fingerprint` is its upright look; `rotated` its other three orientations. */
 function photo(
   name: string,
   {
     hash = name.padEnd(64, '0'),
     fingerprint,
+    rotated = [],
     takenAt,
     size = 1000,
-  }: Partial<AnalyzedPhoto> & { size?: number },
+  }: Partial<AnalyzedPhoto> & { size?: number; fingerprint?: bigint; rotated?: bigint[] },
 ): AnalyzedPhoto {
-  return { file: new File([new Uint8Array(size)], name), hash, fingerprint, takenAt };
+  return {
+    file: new File([new Uint8Array(size)], name),
+    hash,
+    fingerprints: fingerprint === undefined ? undefined : [fingerprint, ...rotated],
+    takenAt,
+  };
+}
+
+function savedPuzzle(title: string, extra: Partial<Puzzle> = {}): Puzzle {
+  return { id: title, userId: 'u', createdAt: '2026-01-01', title, ...extra };
 }
 
 // Fingerprints with a known number of differing bits.
@@ -74,7 +93,7 @@ describe('groupPhotos', () => {
         photo('old', { hash: 'b'.repeat(64) }),
         photo('undecodable', {}),
       ],
-      new Set(['b'.repeat(64)]),
+      existingFrom([savedPuzzle('Old', { importHashes: ['b'.repeat(64)] })]),
     );
     expect(result).toMatchObject({ exactCopies: 1, alreadyImported: 1 });
     // Without fingerprints, photos are never merged.
@@ -88,5 +107,30 @@ describe('groupPhotos', () => {
       photo('old', { takenAt: '2020-01-01T00:00:00' }),
     ]);
     expect(groups.map((g) => g.best.file.name)).toEqual(['old', 'new', 'none']);
+  });
+
+  it('skips photos that look like a saved puzzle, even when turned or re-encoded', () => {
+    const saved = savedPuzzle('Hogwarts', { photoFingerprint: fingerprintToHex(base) });
+    const result = groupPhotos(
+      [
+        // Re-encoded by the picker: different bytes, nearly the same look.
+        photo('again', { fingerprint: flip(3) }),
+        // Saved upright, picked sideways: its 90° turn matches.
+        photo('sideways', { fingerprint: flip(40), rotated: [flip(2), flip(30), flip(35)] }),
+        photo('new', { fingerprint: flip(32) }),
+      ],
+      existingFrom([saved, savedPuzzle('No photo')]),
+    );
+    expect(result.looksImported.map((m) => [m.photo.file.name, m.puzzle.title])).toEqual([
+      ['again', 'Hogwarts'],
+      ['sideways', 'Hogwarts'],
+    ]);
+    expect(result.groups.map((g) => g.best.file.name)).toEqual(['new']);
+  });
+});
+
+describe('lookDistance', () => {
+  it('compares in the closest orientation', () => {
+    expect(lookDistance([base], [flip(30), flip(2)])).toBe(2);
   });
 });
