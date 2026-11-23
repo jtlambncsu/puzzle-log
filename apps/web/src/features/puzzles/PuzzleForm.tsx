@@ -1,9 +1,11 @@
 import { useId, useRef, useState } from 'react';
 import { Controller, useForm, useWatch } from 'react-hook-form';
 import { zodResolver } from '@hookform/resolvers/zod';
-import { ImagePlusIcon, Loader2Icon, RotateCwIcon, XIcon } from 'lucide-react';
-import { MAX_UPLOAD_BYTES } from '@puzzle-log/shared';
-import { useAllTags } from '@/api/queries';
+import { useMutation } from '@tanstack/react-query';
+import { ImagePlusIcon, Loader2Icon, RotateCwIcon, SparklesIcon, XIcon } from 'lucide-react';
+import { toast } from 'sonner';
+import { MAX_TAGS, MAX_UPLOAD_BYTES, uniqueTags } from '@puzzle-log/shared';
+import { uploadPreparedPhoto, useAllTags, useApi } from '@/api/queries';
 import { Button } from '@/components/ui/button';
 import { Field, FieldDescription, FieldError, FieldGroup, FieldLabel } from '@/components/ui/field';
 import { Input } from '@/components/ui/input';
@@ -15,14 +17,30 @@ import { emptyPuzzleForm, hasStarted, puzzleFormSchema, type PuzzleFormValues } 
 import { StatusPicker } from './StatusPicker';
 import { TagInput } from './TagInput';
 
+/** The photos chosen in the form, and keys of any already uploaded (for tag suggestions). */
+export interface FormPhotos {
+  photo?: File;
+  rotation: Rotation;
+  boxPhoto?: File;
+  /** Set when `photo` (as rotated) was already uploaded: reuse it instead of uploading again. */
+  imageKey?: string;
+  boxImageKey?: string;
+}
+
 interface PuzzleFormProps {
-  onSubmit: (values: PuzzleFormValues, photo?: File, rotation?: Rotation) => Promise<unknown>;
+  onSubmit: (values: PuzzleFormValues, photos: FormPhotos) => Promise<unknown>;
   submitLabel?: string;
   /** Start from a saved puzzle (editing) instead of a blank form. */
   defaultValues?: PuzzleFormValues;
-  /** Show the photo picker. Off when editing: photos are rotated on the detail page. */
+  /** Show the photo pickers. Off when editing: photos are managed on the detail page. */
   withPhoto?: boolean;
+  /** When editing: the saved puzzle's photos, which tag suggestions look at. */
+  savedImageKeys?: string[];
 }
+
+/** Identifies a chosen photo as uploaded (rotation changes the uploaded pixels). */
+const uploadKey = (file: File, rotation: Rotation) =>
+  `${file.name}|${file.size}|${file.lastModified}|${rotation}`;
 
 /**
  * Add-puzzle form. React Hook Form keeps inputs uncontrolled (registered by ref), so typing
@@ -34,7 +52,9 @@ export function PuzzleForm({
   submitLabel = 'Save puzzle',
   defaultValues = emptyPuzzleForm,
   withPhoto = true,
+  savedImageKeys = [],
 }: PuzzleFormProps) {
+  const api = useApi();
   const tagSuggestions = useAllTags();
   const {
     register,
@@ -54,6 +74,51 @@ export function PuzzleForm({
   const [rotation, setRotation] = useState<Rotation>(0);
   // The date we filled in from the photo, so we can label it and clear it with the photo.
   const [photoDate, setPhotoDate] = useState<string>();
+  const [boxPhoto, setBoxPhoto] = useState<File>();
+  const [boxPhotoError, setBoxPhotoError] = useState<string>();
+  // Photos uploaded so AI could look at them, reused when saving.
+  const uploaded = useRef(new Map<string, string>());
+  const title = useWatch({ control, name: 'title' });
+
+  async function uploadOnce(file: File, turn: Rotation) {
+    const key = uploadKey(file, turn);
+    const known = uploaded.current.get(key);
+    if (known) return known;
+    const imageKey = await uploadPreparedPhoto(api, file, turn);
+    uploaded.current.set(key, imageKey);
+    return imageKey;
+  }
+
+  const suggestTags = useMutation({
+    mutationFn: async () => {
+      const imageKeys = withPhoto
+        ? (
+            await Promise.all([
+              photo && uploadOnce(photo, rotation),
+              boxPhoto && uploadOnce(boxPhoto, 0),
+            ])
+          ).filter((key): key is string => !!key)
+        : savedImageKeys;
+      const { title, brand } = getValues();
+      return api.suggestTags({
+        title: title.trim() || undefined,
+        brand: brand.trim() || undefined,
+        imageKeys,
+      });
+    },
+    onSuccess: ({ tags }) => {
+      const current = getValues('tags');
+      const added = tags.filter(
+        (tag) => !current.some((have) => have.toLocaleLowerCase() === tag.toLocaleLowerCase()),
+      );
+      setValue('tags', uniqueTags([...current, ...added]).slice(0, MAX_TAGS), {
+        shouldDirty: true,
+      });
+      toast(added.length ? `Added ${added.join(', ')}` : 'No new tags to suggest');
+    },
+    onError: (error) => toast.error(error.message),
+  });
+  const canSuggest = !!title?.trim() || !!photo || !!boxPhoto || savedImageKeys.length > 0;
 
   // Reading EXIF is async; ignore the result if the photo changed in the meantime.
   const latestPhoto = useRef<File>(undefined);
@@ -68,7 +133,17 @@ export function PuzzleForm({
     }
   }
 
-  const submit = handleSubmit((values) => onSubmit(values, photo, rotation));
+  // Built on submit, not during render: it reads the uploads made for tag suggestions.
+  const submit = (event: React.FormEvent<HTMLFormElement>) =>
+    handleSubmit((values) =>
+      onSubmit(values, {
+        photo,
+        rotation,
+        boxPhoto,
+        imageKey: photo && uploaded.current.get(uploadKey(photo, rotation)),
+        boxImageKey: boxPhoto && uploaded.current.get(uploadKey(boxPhoto, 0)),
+      }),
+    )(event);
 
   return (
     <form onSubmit={submit} noValidate className="space-y-6">
@@ -99,6 +174,27 @@ export function PuzzleForm({
               setValue('completedAt', '');
               setPhotoDate(undefined);
             }
+          }}
+        />
+      )}
+      {withPhoto && (
+        <PhotoPicker
+          label="Box photo (optional)"
+          emptyText="Add a photo of the box"
+          compact
+          photo={boxPhoto}
+          error={boxPhotoError}
+          onChange={(file) => {
+            setBoxPhotoError(undefined);
+            if (file && !file.type.startsWith('image/')) {
+              setBoxPhotoError('Choose an image file');
+              return;
+            }
+            if (file && file.size > MAX_UPLOAD_BYTES * 4) {
+              setBoxPhotoError('That photo is too large');
+              return;
+            }
+            setBoxPhoto(file);
           }}
         />
       )}
@@ -191,6 +287,23 @@ export function PuzzleForm({
               />
             )}
           />
+          {/* Wrapped, so the field's layout doesn't stretch it to full width. */}
+          <div>
+            <Button
+              type="button"
+              variant="outline"
+              size="sm"
+              disabled={!canSuggest || suggestTags.isPending}
+              onClick={() => suggestTags.mutate()}
+            >
+              {suggestTags.isPending ? (
+                <Loader2Icon className="animate-spin" aria-hidden />
+              ) : (
+                <SparklesIcon aria-hidden />
+              )}
+              Suggest tags
+            </Button>
+          </div>
           <FieldError errors={[errors.tags]} />
         </Field>
 
@@ -229,15 +342,23 @@ export function PuzzleForm({
 }
 
 function PhotoPicker({
+  label = 'Photo',
+  emptyText = 'Take or choose a photo',
+  compact = false,
   photo,
-  rotation,
+  rotation = 0,
   onRotate,
   error,
   onChange,
 }: {
+  label?: string;
+  emptyText?: string;
+  /** A smaller drop area, for an optional photo. */
+  compact?: boolean;
   photo?: File;
-  rotation: Rotation;
-  onRotate: () => void;
+  rotation?: Rotation;
+  /** Omit to hide the rotate button. */
+  onRotate?: () => void;
   error?: string;
   onChange: (file: File | undefined) => void;
 }) {
@@ -245,28 +366,30 @@ function PhotoPicker({
 
   return (
     <Field data-invalid={!!error}>
-      <FieldLabel htmlFor={inputId}>Photo</FieldLabel>
+      <FieldLabel htmlFor={inputId}>{label}</FieldLabel>
       {photo ? (
         <div className="relative">
           <PhotoPreview file={photo} rotation={rotation} />
           <div className="absolute top-2 right-2 flex gap-2">
-            <Button
-              type="button"
-              variant="secondary"
-              size="icon"
-              className="rounded-full"
-              onClick={onRotate}
-              aria-label="Rotate photo"
-            >
-              <RotateCwIcon />
-            </Button>
+            {onRotate && (
+              <Button
+                type="button"
+                variant="secondary"
+                size="icon"
+                className="rounded-full"
+                onClick={onRotate}
+                aria-label={`Rotate ${label.toLowerCase()}`}
+              >
+                <RotateCwIcon />
+              </Button>
+            )}
             <Button
               type="button"
               variant="secondary"
               size="icon"
               className="rounded-full"
               onClick={() => onChange(undefined)}
-              aria-label="Remove photo"
+              aria-label={`Remove ${label.replace(' (optional)', '').toLowerCase()}`}
             >
               <XIcon />
             </Button>
@@ -275,10 +398,12 @@ function PhotoPicker({
       ) : (
         <label
           htmlFor={inputId}
-          className="flex aspect-[4/3] cursor-pointer flex-col items-center justify-center gap-2 rounded-xl border-2 border-dashed text-muted-foreground transition-colors hover:bg-muted/50"
+          className={`flex cursor-pointer flex-col items-center justify-center gap-2 rounded-xl border-2 border-dashed text-muted-foreground transition-colors hover:bg-muted/50 ${
+            compact ? 'py-4' : 'aspect-[4/3]'
+          }`}
         >
-          <ImagePlusIcon className="size-8" aria-hidden />
-          <span className="text-sm">Take or choose a photo</span>
+          <ImagePlusIcon className={compact ? 'size-6' : 'size-8'} aria-hidden />
+          <span className="text-sm">{emptyText}</span>
         </label>
       )}
       {/* No `capture` attribute: phones then offer both the camera and the photo library. */}

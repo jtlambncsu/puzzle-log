@@ -407,7 +407,7 @@ describe('puzzle timer', () => {
 
 describe('AI suggestions for imported puzzles', () => {
   function suggestApp(suggest: PuzzleSuggester['suggest']) {
-    const suggester = { suggest: vi.fn(suggest) };
+    const suggester = { suggest: vi.fn(suggest), suggestTags: vi.fn(async () => []) };
     return { app: testApp({ photos: fakePhotos(), suggester }), suggester };
   }
 
@@ -523,5 +523,105 @@ describe('photo fingerprints', () => {
       .set(alice)
       .send({ photoFingerprint: 'xyz' });
     expect(bad.status).toBe(400);
+  });
+});
+
+describe('tag suggestions', () => {
+  function tagsApp(
+    suggestTags: PuzzleSuggester['suggestTags'] = async () => ['Disney', 'Castles'],
+  ) {
+    const suggester = { suggest: vi.fn(), suggestTags: vi.fn(suggestTags) };
+    return { app: testApp({ photos: fakePhotos(), suggester }), suggester };
+  }
+
+  it("suggests tags from the title and the user's own photos", async () => {
+    const { app, suggester } = tagsApp();
+    await request(app)
+      .post('/api/puzzles')
+      .set(alice)
+      .send({ title: 'Old', tags: ['Disney'] });
+
+    const res = await request(app)
+      .post('/api/suggestions/tags')
+      .set(alice)
+      .send({ title: 'Cinderella Castle', imageKeys: ['uploads/alice/box'] });
+
+    expect(res.status).toBe(200);
+    expect(res.body).toEqual({ tags: ['Disney', 'Castles'] });
+    expect(suggester.suggestTags).toHaveBeenCalledWith(
+      {
+        title: 'Cinderella Castle',
+        brand: undefined,
+        imageUrls: ['https://bucket.example/uploads/alice/box?signed'],
+      },
+      ['Disney'],
+    );
+  });
+
+  it("rejects someone else's photo, an empty request, and reports outages", async () => {
+    const { app } = tagsApp(async () => {
+      throw new SuggestionUnavailableError('down');
+    });
+    const post = (body: object, user = alice) =>
+      request(app).post('/api/suggestions/tags').set(user).send(body);
+
+    expect((await post({ imageKeys: ['uploads/bob/x'] })).status).toBe(400);
+    expect((await post({})).status).toBe(400);
+    expect((await post({ title: 'x' })).status).toBe(503);
+    expect((await request(app).post('/api/suggestions/tags').send({ title: 'x' })).status).toBe(
+      401,
+    );
+    expect(
+      (await request(testApp()).post('/api/suggestions/tags').set(alice).send({ title: 'x' }))
+        .status,
+    ).toBe(501);
+  });
+});
+
+describe('box photos', () => {
+  it('stores one with a viewing link, checks ownership, and cleans up replaced ones', async () => {
+    const photos = fakePhotos();
+    const app = testApp({ photos });
+    const created = await request(app)
+      .post('/api/puzzles')
+      .set(alice)
+      .send({ title: 'Wish', status: 'wishlist', boxImageKey: 'uploads/alice/box1' });
+    expect(created.body.boxImageUrl).toBe('https://bucket.example/uploads/alice/box1?signed');
+    expect(created.body.imageUrl).toBeUndefined();
+
+    const id = created.body.id as string;
+    const replaced = await request(app)
+      .patch(`/api/puzzles/${id}`)
+      .set(alice)
+      .send({ boxImageKey: 'uploads/alice/box2' });
+    expect(replaced.body.boxImageKey).toBe('uploads/alice/box2');
+    expect(photos.delete).toHaveBeenCalledWith('uploads/alice/box1');
+
+    const removed = await request(app)
+      .patch(`/api/puzzles/${id}`)
+      .set(alice)
+      .send({ boxImageKey: null });
+    expect(removed.body.boxImageUrl).toBeUndefined();
+    expect(photos.delete).toHaveBeenCalledWith('uploads/alice/box2');
+
+    const theirs = await request(app)
+      .post('/api/puzzles')
+      .set(alice)
+      .send({ title: 'x', boxImageKey: 'uploads/bob/box' });
+    expect(theirs.status).toBe(400);
+  });
+
+  it('deletes both photos with the puzzle', async () => {
+    const photos = fakePhotos();
+    const app = testApp({ photos });
+    const created = await request(app)
+      .post('/api/puzzles')
+      .set(alice)
+      .send({ title: 'x', imageKey: 'uploads/alice/a', boxImageKey: 'uploads/alice/b' });
+
+    await request(app).delete(`/api/puzzles/${created.body.id}`).set(alice);
+
+    expect(photos.delete).toHaveBeenCalledWith('uploads/alice/a');
+    expect(photos.delete).toHaveBeenCalledWith('uploads/alice/b');
   });
 });

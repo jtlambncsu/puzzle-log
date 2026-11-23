@@ -7,6 +7,19 @@ export interface PuzzleSuggester {
    * @param knownTags The user's existing tags, so suggestions reuse their spelling.
    */
   suggest(imageUrl: string, knownTags: readonly string[]): Promise<PuzzleSuggestion>;
+
+  /**
+   * Tag ideas for one puzzle, from whatever is known: its title, brand, and photos (the
+   * finished puzzle and/or its box).
+   */
+  suggestTags(input: TagSuggestionInput, knownTags: readonly string[]): Promise<string[]>;
+}
+
+export interface TagSuggestionInput {
+  title?: string;
+  brand?: string;
+  /** URLs the suggester can fetch the photos from. */
+  imageUrls: string[];
 }
 
 /** The suggester couldn't answer (no API key, a timeout, a refusal...). Try again later. */

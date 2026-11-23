@@ -44,7 +44,9 @@ export function PuzzlePhoto({
   /** Preview-only rotation (CSS), e.g. while choosing how to rotate a saved photo. */
   rotation?: number;
 }) {
-  if (!puzzle.imageUrl) {
+  // Without a finished photo (e.g. a puzzle not started yet), show the box.
+  const src = puzzle.imageUrl ?? puzzle.boxImageUrl;
+  if (!src) {
     return (
       <div className={`flex items-center justify-center bg-muted ${className ?? ''}`}>
         <PuzzleIcon className="size-10 text-muted-foreground/50" aria-hidden />
@@ -53,8 +55,8 @@ export function PuzzlePhoto({
   }
   return (
     <img
-      src={puzzle.imageUrl}
-      alt={`Photo of ${puzzle.title}`}
+      src={src}
+      alt={puzzle.imageUrl ? `Photo of ${puzzle.title}` : `Box of ${puzzle.title}`}
       loading="lazy"
       decoding="async"
       // Request it with CORS so the service worker can cache it for offline use (browsers

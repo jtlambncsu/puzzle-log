@@ -20,6 +20,7 @@ import { Button } from '@/components/ui/button';
 import { Skeleton } from '@/components/ui/skeleton';
 import { formatDate, puzzleSubtitle } from '@/features/puzzles/format';
 import { PuzzleTimer } from '@/features/puzzles/PuzzleTimer';
+import { PhotoSlots } from '@/features/puzzles/PhotoSlots';
 import { RotatablePhoto } from '@/features/puzzles/RotatablePhoto';
 import { StatusBadge } from '@/features/puzzles/PuzzleCard';
 import { StatusActions } from '@/features/puzzles/StatusActions';
@@ -65,6 +66,7 @@ function PuzzleDetailPage() {
       </Button>
 
       <RotatablePhoto puzzle={puzzle} />
+      <PhotoSlots puzzle={puzzle} />
 
       <div>
         <StatusBadge puzzle={puzzle} className="mb-2" />

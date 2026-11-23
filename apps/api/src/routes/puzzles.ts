@@ -54,10 +54,18 @@ export function puzzlesRouter(
     }
   }
 
-  /** Adds a temporary viewing URL for the puzzle's photo, if it has one. */
+  /** Adds temporary viewing URLs for the puzzle's photos (finished and box), if any. */
   async function withImageUrl(puzzle: Puzzle): Promise<Puzzle> {
-    if (!photos || !puzzle.imageKey) return puzzle;
-    return { ...puzzle, imageUrl: await photos.getViewUrl(puzzle.imageKey) };
+    if (!photos || !(puzzle.imageKey || puzzle.boxImageKey)) return puzzle;
+    const [imageUrl, boxImageUrl] = await Promise.all([
+      puzzle.imageKey && photos.getViewUrl(puzzle.imageKey),
+      puzzle.boxImageKey && photos.getViewUrl(puzzle.boxImageKey),
+    ]);
+    return {
+      ...puzzle,
+      ...(imageUrl && { imageUrl }),
+      ...(boxImageUrl && { boxImageUrl }),
+    };
   }
 
   router.get('/', async (_req, res) => {
@@ -83,7 +91,10 @@ export function puzzlesRouter(
     }
     // Without this check, a user could attach (and get a viewing link for) someone
     // else's photo by guessing its key.
-    if (!ownsImageKey(userId, result.data.imageKey)) {
+    if (
+      !ownsImageKey(userId, result.data.imageKey) ||
+      !ownsImageKey(userId, result.data.boxImageKey)
+    ) {
       res.status(400).json({ error: 'Invalid image key' });
       return;
     }
@@ -97,7 +108,10 @@ export function puzzlesRouter(
       res.status(400).json({ error: 'Invalid update', issues: result.error.issues });
       return;
     }
-    if (!ownsImageKey(userId, result.data.imageKey)) {
+    if (
+      !ownsImageKey(userId, result.data.imageKey) ||
+      !ownsImageKey(userId, result.data.boxImageKey ?? undefined)
+    ) {
       res.status(400).json({ error: 'Invalid image key' });
       return;
     }
@@ -136,9 +150,12 @@ export function puzzlesRouter(
       res.status(404).json({ error: 'Puzzle not found' });
       return;
     }
-    // A replaced photo (e.g. after rotating it) is no longer used.
+    // A replaced or removed photo (e.g. after rotating it) is no longer used.
     if (before.imageKey && before.imageKey !== updated.imageKey) {
       await deletePhoto(before.imageKey);
+    }
+    if (before.boxImageKey && before.boxImageKey !== updated.boxImageKey) {
+      await deletePhoto(before.boxImageKey);
     }
     res.json(await withImageUrl(updated));
   });
@@ -229,7 +246,7 @@ export function puzzlesRouter(
       res.status(404).end();
       return;
     }
-    await deletePhoto(deleted.imageKey);
+    await Promise.all([deletePhoto(deleted.imageKey), deletePhoto(deleted.boxImageKey)]);
     res.status(204).end();
   });
 
