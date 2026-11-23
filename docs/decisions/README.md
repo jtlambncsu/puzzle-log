@@ -34,3 +34,4 @@ New decision? Copy [`0000-template.md`](0000-template.md) to the next number.
 | [0027](0027-find-details-online.md)           | Find details online (rejected after a trial; rolled back)               |
 | [0028](0028-backup-export.md)                 | Backup: CSV and photo zips made in the browser                          |
 | [0029](0029-duplicate-finder.md)              | Duplicate finder: photo fingerprints and titles, owner decides          |
+| [0030](0030-virtualized-puzzle-list.md)       | Virtualized puzzle list with TanStack Virtual                           |

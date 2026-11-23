@@ -56,6 +56,7 @@ export function PuzzlePhoto({
       src={puzzle.imageUrl}
       alt={`Photo of ${puzzle.title}`}
       loading="lazy"
+      decoding="async"
       // Request it with CORS so the service worker can cache it for offline use (browsers
       // hide the contents of no-CORS responses, which the cache then refuses).
       crossOrigin="anonymous"
