@@ -14,7 +14,7 @@ import { z } from 'zod';
 import { puzzleStatus, statusSchema, type PuzzleStatus } from '@puzzle-log/shared';
 import { puzzlesQueryOptions, useApi } from '@/api/queries';
 import { Button } from '@/components/ui/button';
-import { PuzzleCard } from '@/features/puzzles/PuzzleCard';
+import { PuzzleGrid } from '@/features/puzzles/PuzzleGrid';
 import { PuzzleFilters } from '@/features/puzzles/PuzzleFilters';
 import { PuzzleGridSkeleton } from '@/features/puzzles/PuzzleGridSkeleton';
 import { hasTag, matchesSearch, tagCounts } from '@/lib/search';
@@ -140,13 +140,7 @@ function PuzzleListPage() {
           </Button>
         </div>
       ) : (
-        <ul className="mt-4 grid grid-cols-2 gap-3 sm:grid-cols-3">
-          {matching.map((puzzle) => (
-            <li key={puzzle.id}>
-              <PuzzleCard puzzle={puzzle} />
-            </li>
-          ))}
-        </ul>
+        <PuzzleGrid puzzles={matching} />
       )}
     </>
   );

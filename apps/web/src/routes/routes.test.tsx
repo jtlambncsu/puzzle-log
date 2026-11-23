@@ -47,6 +47,32 @@ describe('puzzle list', () => {
   });
 });
 
+describe('a long puzzle list', () => {
+  it('renders only the cards near the screen, and search still finds the rest', async () => {
+    db.add({ title: 'Oldest castle' });
+    for (let i = 2; i <= 100; i++) db.add({ title: `Puzzle number ${i}` });
+    // jsdom has no layout (everything is 0px tall), so give rows a phone-sized height. The
+    // virtualizer reads offsetHeight.
+    const measure = vi.spyOn(HTMLElement.prototype, 'offsetHeight', 'get').mockReturnValue(260);
+    const user = userEvent.setup();
+    renderApp('/');
+
+    const list = await screen.findByRole('list', { name: 'Puzzles' });
+    const items = within(list).getAllByRole('listitem');
+    expect(items.length).toBeGreaterThan(0);
+    expect(items.length).toBeLessThan(100);
+    // Screen readers still hear the whole list's size.
+    expect(items[0]).toHaveAttribute('aria-setsize', '100');
+    expect(items[0]).toHaveAttribute('aria-posinset', '1');
+    // The server returns newest first, so the first one added is at the end.
+    expect(screen.queryByText('Oldest castle')).not.toBeInTheDocument();
+
+    await user.type(screen.getByRole('searchbox', { name: 'Search puzzles' }), 'castle');
+    expect(await screen.findByText('Oldest castle')).toBeInTheDocument();
+    measure.mockRestore();
+  });
+});
+
 describe('adding a puzzle', () => {
   it('requires a title and a whole number of pieces', async () => {
     const user = userEvent.setup();
