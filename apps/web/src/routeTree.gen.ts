@@ -11,6 +11,7 @@
 import { Route as rootRouteImport } from './routes/__root'
 import { Route as IndexRouteImport } from './routes/index'
 import { Route as BackupRouteImport } from './routes/backup'
+import { Route as DuplicatesRouteImport } from './routes/duplicates'
 import { Route as MoreRouteImport } from './routes/more'
 import { Route as ReviewRouteImport } from './routes/review'
 import { Route as StatsRouteImport } from './routes/stats'
@@ -30,6 +31,11 @@ const IndexRoute = IndexRouteImport.update({
 const BackupRoute = BackupRouteImport.update({
   id: '/backup',
   path: '/backup',
+  getParentRoute: () => rootRouteImport,
+} as any)
+const DuplicatesRoute = DuplicatesRouteImport.update({
+  id: '/duplicates',
+  path: '/duplicates',
   getParentRoute: () => rootRouteImport,
 } as any)
 const MoreRoute = MoreRouteImport.update({
@@ -86,6 +92,7 @@ const PuzzlesPuzzleIdEditRoute = PuzzlesPuzzleIdEditRouteImport.update({
 export interface FileRoutesByFullPath {
   '/': typeof IndexRoute
   '/backup': typeof BackupRoute
+  '/duplicates': typeof DuplicatesRoute
   '/more': typeof MoreRoute
   '/review': typeof ReviewRoute
   '/stats': typeof StatsRoute
@@ -100,6 +107,7 @@ export interface FileRoutesByFullPath {
 export interface FileRoutesByTo {
   '/': typeof IndexRoute
   '/backup': typeof BackupRoute
+  '/duplicates': typeof DuplicatesRoute
   '/more': typeof MoreRoute
   '/review': typeof ReviewRoute
   '/stats': typeof StatsRoute
@@ -115,6 +123,7 @@ export interface FileRoutesById {
   __root__: typeof rootRouteImport
   '/': typeof IndexRoute
   '/backup': typeof BackupRoute
+  '/duplicates': typeof DuplicatesRoute
   '/more': typeof MoreRoute
   '/review': typeof ReviewRoute
   '/stats': typeof StatsRoute
@@ -131,6 +140,7 @@ export interface FileRouteTypes {
   fullPaths:
     | '/'
     | '/backup'
+    | '/duplicates'
     | '/more'
     | '/review'
     | '/stats'
@@ -145,6 +155,7 @@ export interface FileRouteTypes {
   to:
     | '/'
     | '/backup'
+    | '/duplicates'
     | '/more'
     | '/review'
     | '/stats'
@@ -159,6 +170,7 @@ export interface FileRouteTypes {
     | '__root__'
     | '/'
     | '/backup'
+    | '/duplicates'
     | '/more'
     | '/review'
     | '/stats'
@@ -174,6 +186,7 @@ export interface FileRouteTypes {
 export interface RootRouteChildren {
   IndexRoute: typeof IndexRoute
   BackupRoute: typeof BackupRoute
+  DuplicatesRoute: typeof DuplicatesRoute
   MoreRoute: typeof MoreRoute
   ReviewRoute: typeof ReviewRoute
   StatsRoute: typeof StatsRoute
@@ -200,6 +213,13 @@ declare module '@tanstack/react-router' {
       path: '/backup'
       fullPath: '/backup'
       preLoaderRoute: typeof BackupRouteImport
+      parentRoute: typeof rootRouteImport
+    }
+    '/duplicates': {
+      id: '/duplicates'
+      path: '/duplicates'
+      fullPath: '/duplicates'
+      preLoaderRoute: typeof DuplicatesRouteImport
       parentRoute: typeof rootRouteImport
     }
     '/more': {
@@ -278,6 +298,7 @@ declare module '@tanstack/react-router' {
 const rootRouteChildren: RootRouteChildren = {
   IndexRoute: IndexRoute,
   BackupRoute: BackupRoute,
+  DuplicatesRoute: DuplicatesRoute,
   MoreRoute: MoreRoute,
   ReviewRoute: ReviewRoute,
   StatsRoute: StatsRoute,

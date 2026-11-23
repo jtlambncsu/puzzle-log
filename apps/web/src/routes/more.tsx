@@ -1,21 +1,12 @@
 import { createFileRoute, Link } from '@tanstack/react-router';
-import {
-  ChevronRightIcon,
-  DatabaseBackupIcon,
-  FolderInputIcon,
-  type LucideIcon,
-} from 'lucide-react';
+import { ChevronRightIcon, CopyIcon, DatabaseBackupIcon, FolderInputIcon } from 'lucide-react';
 
 export const Route = createFileRoute('/more')({
   component: MorePage,
 });
 
-const TOOLS: {
-  to: '/puzzles/import' | '/backup';
-  icon: LucideIcon;
-  title: string;
-  description: string;
-}[] = [
+/** Each entry's `to` is checked against the app's routes by TanStack Router's types. */
+const TOOLS = [
   {
     to: '/puzzles/import',
     icon: FolderInputIcon,
@@ -23,12 +14,18 @@ const TOOLS: {
     description: 'Add puzzles from your camera roll, duplicates skipped',
   },
   {
+    to: '/duplicates',
+    icon: CopyIcon,
+    title: 'Duplicates',
+    description: 'Find puzzles logged twice and keep one',
+  },
+  {
     to: '/backup',
     icon: DatabaseBackupIcon,
     title: 'Backup',
     description: 'Download your log as a spreadsheet, and your photos',
   },
-];
+] as const;
 
 /** Tools that don't need a spot in the header. */
 function MorePage() {
