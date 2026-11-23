@@ -2,6 +2,7 @@ import { createFileRoute, Link, notFound, useNavigate } from '@tanstack/react-ro
 import { useSuspenseQuery } from '@tanstack/react-query';
 import { ArrowLeftIcon, PencilIcon, Trash2Icon } from 'lucide-react';
 import { toast } from 'sonner';
+import type { Puzzle } from '@puzzle-log/shared';
 import { ApiError } from '@/api/client';
 import { puzzleQueryOptions, useApi, useDeletePuzzle } from '@/api/queries';
 import {
@@ -21,6 +22,7 @@ import { Skeleton } from '@/components/ui/skeleton';
 import { formatDate, puzzleSubtitle } from '@/features/puzzles/format';
 import { PuzzleTimer } from '@/features/puzzles/PuzzleTimer';
 import { PhotoSlots } from '@/features/puzzles/PhotoSlots';
+import { Stars } from '@/features/puzzles/StarRating';
 import { RotatablePhoto } from '@/features/puzzles/RotatablePhoto';
 import { StatusBadge } from '@/features/puzzles/PuzzleCard';
 import { StatusActions } from '@/features/puzzles/StatusActions';
@@ -94,6 +96,8 @@ function PuzzleDetailPage() {
         )}
       </div>
 
+      <HowItWent puzzle={puzzle} />
+
       <PuzzleTimer puzzle={puzzle} />
 
       <StatusActions puzzle={puzzle} />
@@ -140,3 +144,24 @@ function PuzzleDetailPage() {
     </article>
   );
 }
+
+/** The rating and notes on how it went, for finished puzzles that have any. */
+function HowItWent({ puzzle }: { puzzle: Puzzle }) {
+  const parts = [
+    puzzle.difficulty && DIFFICULTY_LABELS[puzzle.difficulty],
+    puzzle.missingPieces !== undefined &&
+      (puzzle.missingPieces === 0
+        ? 'No missing pieces'
+        : `${puzzle.missingPieces} missing ${puzzle.missingPieces === 1 ? 'piece' : 'pieces'}`),
+    puzzle.wouldRedo !== undefined && (puzzle.wouldRedo ? 'Would do again' : "Wouldn't do again"),
+  ].filter(Boolean);
+  if (!puzzle.rating && !parts.length) return null;
+  return (
+    <div className="flex flex-wrap items-center gap-x-3 gap-y-1 text-sm text-muted-foreground">
+      {puzzle.rating && <Stars rating={puzzle.rating} />}
+      {parts.join(' · ')}
+    </div>
+  );
+}
+
+const DIFFICULTY_LABELS = { easy: 'Easy', medium: 'Medium', hard: 'Hard' } as const;

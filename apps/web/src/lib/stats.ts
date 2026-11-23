@@ -1,7 +1,9 @@
 import {
+  DIFFICULTIES,
   piecesPerHour,
   puzzleStatus,
   totalTimeMs,
+  type Difficulty,
   type Puzzle,
   type PuzzleStatus,
 } from '@puzzle-log/shared';
@@ -35,6 +37,12 @@ export interface PuzzleStats {
   piecesPerHour?: number;
   topBrands: RankedCount[];
   topTags: RankedCount[];
+  /** Highest-rated finished puzzles (4 or 5 stars), best and most recent first. */
+  favorites: Puzzle[];
+  /** Average stars over rated finished puzzles. */
+  averageRating?: number;
+  /** Pieces an hour for each difficulty, from timed puzzles with a piece count. */
+  paceByDifficulty: { difficulty: Difficulty; puzzles: number; piecesPerHour: number }[];
 }
 
 /** Everything the stats page shows, from the puzzle list. Only finished puzzles count. */
@@ -77,8 +85,32 @@ export function puzzleStats(puzzles: readonly Puzzle[], now = new Date(), top = 
     .map((puzzle) => ({ pieces: puzzle.pieceCount ?? 0, ms: totalTimeMs(puzzle, now.getTime()) }))
     .filter(({ pieces, ms }) => pieces > 0 && ms > 0);
 
+  const rated = done.filter((puzzle) => puzzle.rating);
+  const favorites = rated
+    .filter((puzzle) => puzzle.rating! >= 4)
+    .sort(
+      (a, b) => b.rating! - a.rating! || (b.completedAt ?? '').localeCompare(a.completedAt ?? ''),
+    )
+    .slice(0, top);
+  const paceByDifficulty = DIFFICULTIES.flatMap((difficulty) => {
+    const group = done
+      .filter((puzzle) => puzzle.difficulty === difficulty)
+      .map((puzzle) => ({ pieces: puzzle.pieceCount ?? 0, ms: totalTimeMs(puzzle, now.getTime()) }))
+      .filter(({ pieces, ms }) => pieces > 0 && ms > 0);
+    const pace = piecesPerHour(
+      group.reduce((sum, { pieces }) => sum + pieces, 0),
+      group.reduce((sum, { ms }) => sum + ms, 0),
+    );
+    return pace ? [{ difficulty, puzzles: group.length, piecesPerHour: pace }] : [];
+  });
+
   return {
     statusCounts,
+    favorites,
+    averageRating: rated.length
+      ? rated.reduce((sum, puzzle) => sum + puzzle.rating!, 0) / rated.length
+      : undefined,
+    paceByDifficulty,
     timeSpentMs: puzzles.reduce((sum, puzzle) => sum + totalTimeMs(puzzle, now.getTime()), 0),
     piecesPerHour: piecesPerHour(
       timed.reduce((sum, { pieces }) => sum + pieces, 0),

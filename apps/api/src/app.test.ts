@@ -625,3 +625,42 @@ describe('box photos', () => {
     expect(photos.delete).toHaveBeenCalledWith('uploads/alice/b');
   });
 });
+
+describe('ratings', () => {
+  it('stores a rating, difficulty, missing pieces and would-redo, and validates them', async () => {
+    const app = testApp();
+    const created = await request(app)
+      .post('/api/puzzles')
+      .set(alice)
+      .send({ title: 'x', rating: 5, difficulty: 'hard', missingPieces: 2, wouldRedo: true });
+    expect(created.body).toMatchObject({
+      rating: 5,
+      difficulty: 'hard',
+      missingPieces: 2,
+      wouldRedo: true,
+    });
+
+    const cleared = await request(app)
+      .patch(`/api/puzzles/${created.body.id}`)
+      .set(alice)
+      .send({ rating: null, wouldRedo: null });
+    expect(cleared.body.rating).toBeUndefined();
+    expect(cleared.body.wouldRedo).toBeUndefined();
+
+    for (const bad of [
+      { rating: 6 },
+      { rating: 0 },
+      { difficulty: 'impossible' },
+      { missingPieces: -1 },
+    ]) {
+      expect(
+        (
+          await request(app)
+            .post('/api/puzzles')
+            .set(alice)
+            .send({ title: 'x', ...bad })
+        ).status,
+      ).toBe(400);
+    }
+  });
+});

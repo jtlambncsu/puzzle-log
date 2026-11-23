@@ -1,4 +1,4 @@
-import { screen, waitFor, within } from '@testing-library/react';
+import { cleanup, screen, waitFor, within } from '@testing-library/react';
 import userEvent from '@testing-library/user-event';
 import { http, HttpResponse } from 'msw';
 import { readFileSync } from 'node:fs';
@@ -44,6 +44,46 @@ describe('puzzle list', () => {
     db.add({ title: 'Back again' });
     await userEvent.click(screen.getByRole('button', { name: /try again/i }));
     expect(await screen.findByText('Back again')).toBeInTheDocument();
+  });
+});
+
+describe('how it went', () => {
+  it('rates a finished puzzle when adding it, and shows it on its page', async () => {
+    const user = userEvent.setup();
+    renderApp('/puzzles/new');
+
+    await user.type(await screen.findByLabelText('Title'), 'Big Ben');
+    await user.click(screen.getByRole('radio', { name: '4 stars' }));
+    await user.click(screen.getByRole('radio', { name: 'hard' }));
+    await user.type(screen.getByLabelText('Missing pieces'), '2');
+    await user.click(screen.getByRole('radio', { name: 'Yes' }));
+    await user.click(screen.getByRole('button', { name: /save puzzle/i }));
+
+    await waitFor(() => expect(db.puzzles.size).toBe(1));
+    const saved = [...db.puzzles.values()][0]!;
+    expect(saved).toMatchObject({
+      rating: 4,
+      difficulty: 'hard',
+      missingPieces: 2,
+      wouldRedo: true,
+    });
+
+    cleanup();
+    renderApp(`/puzzles/${saved.id}`);
+    expect(await screen.findByText('Hard · 2 missing pieces · Would do again')).toBeInTheDocument();
+    expect(screen.getByRole('img', { name: '4 of 5 stars' })).toBeInTheDocument();
+  });
+
+  it('only asks for finished puzzles, and tapping a star again clears it', async () => {
+    const user = userEvent.setup();
+    renderApp('/puzzles/new');
+
+    await user.type(await screen.findByLabelText('Title'), 'Someday');
+    await user.click(screen.getByRole('radio', { name: '3 stars' }));
+    await user.click(screen.getByRole('radio', { name: '3 stars' }));
+    expect(screen.getByRole('radio', { name: '3 stars' })).toHaveAttribute('aria-checked', 'false');
+    await user.click(screen.getByRole('radio', { name: 'Wishlist' }));
+    expect(screen.queryByRole('radiogroup', { name: 'Rating' })).not.toBeInTheDocument();
   });
 });
 
@@ -523,6 +563,10 @@ describe('editing a puzzle', () => {
       startedAt: null,
       completedAt: null,
       notes: null,
+      rating: null,
+      difficulty: null,
+      missingPieces: null,
+      wouldRedo: null,
       tags: ['Star Wars'],
       barcode: null,
     });

@@ -1,6 +1,7 @@
 import { z } from 'zod';
 import {
   createPuzzleSchema,
+  difficultySchema,
   MAX_TAGS,
   normalizeBarcode,
   puzzleStatus,
@@ -30,6 +31,15 @@ export const puzzleFormSchema = z.object({
   startedAt: z.string(),
   completedAt: z.string(),
   notes: notes.unwrap(),
+  /** 0 means not rated. */
+  rating: z.number().int().min(0).max(5),
+  difficulty: z.union([difficultySchema, z.literal('')]),
+  missingPieces: z
+    .string()
+    .trim()
+    .refine((value) => value === '' || /^\d{1,5}$/.test(value), 'Enter a whole number'),
+  /** '' means not answered. */
+  wouldRedo: z.enum(['', 'yes', 'no']),
   tags: z.array(tagSchema).max(MAX_TAGS),
   barcode: z
     .string()
@@ -47,6 +57,10 @@ export const emptyPuzzleForm: PuzzleFormValues = {
   startedAt: '',
   completedAt: '',
   notes: '',
+  rating: 0,
+  difficulty: '',
+  missingPieces: '',
+  wouldRedo: '',
   tags: [],
   barcode: '',
 };
@@ -65,6 +79,10 @@ export function puzzleToFormValues(puzzle: Puzzle): PuzzleFormValues {
     startedAt: puzzle.startedAt ?? '',
     completedAt: puzzle.completedAt ?? '',
     notes: puzzle.notes ?? '',
+    rating: puzzle.rating ?? 0,
+    difficulty: puzzle.difficulty ?? '',
+    missingPieces: puzzle.missingPieces === undefined ? '' : String(puzzle.missingPieces),
+    wouldRedo: puzzle.wouldRedo === undefined ? '' : puzzle.wouldRedo ? 'yes' : 'no',
     tags: puzzle.tags ?? [],
     barcode: puzzle.barcode ?? '',
   };
@@ -81,6 +99,13 @@ export function toCreatePuzzleInput(values: PuzzleFormValues): CreatePuzzleInput
     startedAt: (hasStarted(values.status) && values.startedAt) || undefined,
     completedAt: (values.status === 'done' && values.completedAt) || undefined,
     notes: values.notes.trim() || undefined,
+    // How it went only applies to finished puzzles.
+    ...(values.status === 'done' && {
+      rating: values.rating || undefined,
+      difficulty: values.difficulty || undefined,
+      missingPieces: values.missingPieces ? Number(values.missingPieces) : undefined,
+      wouldRedo: values.wouldRedo ? values.wouldRedo === 'yes' : undefined,
+    }),
     tags: values.tags.length ? values.tags : undefined,
     barcode: values.barcode || undefined,
   });
@@ -100,6 +125,10 @@ export function toUpdatePuzzleInput(values: PuzzleFormValues): UpdatePuzzleInput
     startedAt: input.startedAt ?? null,
     completedAt: input.completedAt ?? null,
     notes: input.notes ?? null,
+    rating: input.rating ?? null,
+    difficulty: input.difficulty ?? null,
+    missingPieces: input.missingPieces ?? null,
+    wouldRedo: input.wouldRedo ?? null,
     tags: input.tags ?? null,
     barcode: input.barcode ?? null,
   };

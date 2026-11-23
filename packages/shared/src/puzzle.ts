@@ -13,6 +13,11 @@ export function puzzleStatus(puzzle: { status?: PuzzleStatus }): PuzzleStatus {
   return puzzle.status ?? 'done';
 }
 
+/** How hard a finished puzzle was, in the owner's opinion. */
+export const DIFFICULTIES = ['easy', 'medium', 'hard'] as const;
+export type Difficulty = (typeof DIFFICULTIES)[number];
+export const difficultySchema = z.enum(DIFFICULTIES);
+
 export const MAX_TAGS = 20;
 
 /**
@@ -86,6 +91,12 @@ export const createPuzzleSchema = z.object({
   startedAt: z.iso.date().optional(),
   completedAt: z.iso.date().optional(),
   notes: z.string().max(2000).optional(),
+  /** How the owner liked it, 1 to 5 stars. */
+  rating: z.number().int().min(1).max(5).optional(),
+  difficulty: difficultySchema.optional(),
+  /** Pieces missing from the box, if any were. */
+  missingPieces: z.number().int().min(0).max(10_000).optional(),
+  wouldRedo: z.boolean().optional(),
   tags: tagsSchema.optional(),
   /** Product barcode (normalized to 13 digits), for scanning boxes in a shop. */
   barcode: barcodeSchema.optional(),
@@ -111,6 +122,10 @@ const {
   startedAt,
   completedAt,
   notes,
+  rating,
+  difficulty,
+  missingPieces,
+  wouldRedo,
   tags,
   barcode,
   sessions,
@@ -133,6 +148,10 @@ export const updatePuzzleSchema = z
     startedAt: startedAt.unwrap().nullable().optional(),
     completedAt: completedAt.unwrap().nullable().optional(),
     notes: notes.unwrap().nullable().optional(),
+    rating: rating.unwrap().nullable().optional(),
+    difficulty: difficulty.unwrap().nullable().optional(),
+    missingPieces: missingPieces.unwrap().nullable().optional(),
+    wouldRedo: wouldRedo.unwrap().nullable().optional(),
     tags: tags.unwrap().nullable().optional(),
     barcode: barcode.unwrap().nullable().optional(),
     sessions: sessions.unwrap().nullable().optional(),
