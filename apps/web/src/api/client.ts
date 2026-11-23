@@ -3,6 +3,8 @@ import type {
   CreatePuzzleInput,
   Puzzle,
   StartTimerInput,
+  SuggestTagsInput,
+  SuggestTagsResult,
   UpdatePuzzleInput,
   UploadTarget,
 } from '@puzzle-log/shared';
@@ -84,6 +86,12 @@ export function createPuzzlesApi(getAccessToken: GetAccessToken) {
     /** Asks the API to name an imported puzzle from its photo (AI). */
     suggest: (id: string) =>
       request<Puzzle>(`/puzzles/${encodeURIComponent(id)}/suggest`, { method: 'POST' }),
+    /** AI tag ideas for a puzzle being added or edited. Nothing is saved. */
+    suggestTags: (input: SuggestTagsInput) =>
+      request<SuggestTagsResult>('/suggestions/tags', {
+        method: 'POST',
+        body: JSON.stringify(input),
+      }),
     remove: (id: string) =>
       request<void>(`/puzzles/${encodeURIComponent(id)}`, { method: 'DELETE' }),
     lookupBarcode: (barcode: string) =>

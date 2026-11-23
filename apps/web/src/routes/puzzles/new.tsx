@@ -52,10 +52,11 @@ function NewPuzzlePage() {
           barcode: prefill.barcode ?? '',
           status: prefill.status ?? 'done',
         }}
-        onSubmit={async (values, photo, rotation) => {
+        onSubmit={async (values, { photo, rotation, boxPhoto, imageKey, boxImageKey }) => {
           try {
-            const input = toCreatePuzzleInput(values);
-            const puzzle = await createPuzzle.mutateAsync({ input, photo, rotation });
+            // Photos already uploaded for tag suggestions are reused, not uploaded again.
+            const input = { ...toCreatePuzzleInput(values), imageKey, boxImageKey };
+            const puzzle = await createPuzzle.mutateAsync({ input, photo, rotation, boxPhoto });
             toast.success(`Saved “${puzzle.title}”`);
             await navigate({ to: '/' });
           } catch (error) {

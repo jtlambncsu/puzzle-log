@@ -1,6 +1,7 @@
 import express, { type ErrorRequestHandler } from 'express';
 import cors from 'cors';
 import { puzzlesRouter } from './routes/puzzles.js';
+import { suggestionsRouter } from './routes/suggestions.js';
 import { uploadsRouter } from './routes/uploads.js';
 import { barcodesRouter } from './routes/barcodes.js';
 import { InMemoryBarcodeCache } from './barcodes/cache.js';
@@ -52,6 +53,11 @@ export function createApp({
   // Everything below needs a signed-in user. In AWS, API Gateway also rejects requests
   // without a valid token before they reach Lambda; this is a second line of defense.
   app.use('/api/puzzles', requireUser(resolveUser), puzzlesRouter(store, photos, clock, suggester));
+  app.use(
+    '/api/suggestions',
+    requireUser(resolveUser),
+    suggestionsRouter(store, photos, suggester),
+  );
   app.use('/api/uploads', requireUser(resolveUser), uploadsRouter(photos));
   app.use('/api/barcodes', requireUser(resolveUser), barcodesRouter(productLookup, barcodeCache));
 

@@ -11,14 +11,17 @@ export const PHOTOS_PER_ZIP = 40;
  * A file name for a puzzle's photo inside the zip, readable and unique:
  * "hogwarts-at-night-1a2b3c4d.jpg". The same name is in the spreadsheet's Photo column.
  */
-export function photoFileName(puzzle: Pick<Puzzle, 'id' | 'title'>) {
+export function photoFileName(
+  puzzle: Pick<Puzzle, 'id' | 'title'>,
+  kind: 'photo' | 'box' = 'photo',
+) {
   const slug = puzzle.title
     .toLowerCase()
     .normalize('NFKD')
     .replace(/[^a-z0-9]+/g, '-')
     .replace(/^-|-$/g, '')
     .slice(0, 50);
-  return `${slug || 'puzzle'}-${puzzle.id.slice(0, 8)}.jpg`;
+  return `${slug || 'puzzle'}-${puzzle.id.slice(0, 8)}${kind === 'box' ? '-box' : ''}.jpg`;
 }
 
 /**
@@ -41,17 +44,29 @@ export function puzzlesToCsv(puzzles: readonly Puzzle[], now = Date.now()) {
       Notes: puzzle.notes ?? '',
       Added: puzzle.createdAt.slice(0, 10),
       Photo: puzzle.imageKey ? photoFileName(puzzle) : '',
+      'Box photo': puzzle.boxImageKey ? photoFileName(puzzle, 'box') : '',
     };
   });
   return BYTE_ORDER_MARK + Papa.unparse(rows);
 }
 
-/** Puzzles with photos, split into zip-sized parts. */
+/** One photo to put in a zip: where to download it, and its name in the zip. */
+export interface PhotoEntry {
+  url: string;
+  name: string;
+}
+
+/** Every photo (finished and box), split into zip-sized parts. */
 export function photoParts(puzzles: readonly Puzzle[]) {
-  const withPhotos = puzzles.filter((puzzle) => puzzle.imageUrl);
-  const parts: Puzzle[][] = [];
-  for (let i = 0; i < withPhotos.length; i += PHOTOS_PER_ZIP) {
-    parts.push(withPhotos.slice(i, i + PHOTOS_PER_ZIP));
+  const entries: PhotoEntry[] = puzzles.flatMap((puzzle) => [
+    ...(puzzle.imageUrl ? [{ url: puzzle.imageUrl, name: photoFileName(puzzle) }] : []),
+    ...(puzzle.boxImageUrl
+      ? [{ url: puzzle.boxImageUrl, name: photoFileName(puzzle, 'box') }]
+      : []),
+  ]);
+  const parts: PhotoEntry[][] = [];
+  for (let i = 0; i < entries.length; i += PHOTOS_PER_ZIP) {
+    parts.push(entries.slice(i, i + PHOTOS_PER_ZIP));
   }
   return parts;
 }

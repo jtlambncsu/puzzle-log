@@ -88,8 +88,8 @@ function BackupPage() {
           Photos
         </h2>
         <p className="text-sm text-muted-foreground">
-          In parts, so your phone doesn't run out of memory. Each photo is named as in the
-          spreadsheet's Photo column.
+          In parts, so your phone doesn't run out of memory. Photos are named as in the
+          spreadsheet's Photo and Box photo columns.
         </p>
         {parts.length === 0 && <p className="text-sm">No photos yet.</p>}
         <ul className="space-y-2">

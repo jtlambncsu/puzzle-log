@@ -91,8 +91,10 @@ export const createPuzzleSchema = z.object({
   barcode: barcodeSchema.optional(),
   /** Finished timer sessions. Added by the timer; editable to fix a forgotten Pause. */
   sessions: sessionsSchema.optional(),
-  /** S3 object key returned by `POST /api/uploads`. */
+  /** S3 object key returned by `POST /api/uploads`: the finished puzzle. */
   imageKey: imageKeySchema.optional(),
+  /** A photo of the box, e.g. for a puzzle not started yet. Same kind of key. */
+  boxImageKey: imageKeySchema.optional(),
   /** Imported in bulk and not checked by the user yet (see the review screen). */
   needsReview: z.literal(true).optional(),
   /** The photo files this puzzle came from (a merged duplicate adds its own). */
@@ -138,6 +140,7 @@ export const updatePuzzleSchema = z
     importHashes: importHashes.unwrap().nullable().optional(),
     photoFingerprint: photoFingerprint.unwrap().nullable().optional(),
     imageKey: imageKeySchema.optional(),
+    boxImageKey: imageKeySchema.nullable().optional(),
   })
   .refine((patch) => Object.keys(patch).length > 0, 'Nothing to update');
 
@@ -155,6 +158,27 @@ export interface Puzzle extends CreatePuzzleInput {
   timerStartedAt?: string;
   /** Short-lived URL for viewing the photo, added by the API when `imageKey` is set. */
   imageUrl?: string;
+  /** The same for `boxImageKey`. */
+  boxImageUrl?: string;
+}
+
+/** `POST /api/suggestions/tags`: AI tag ideas from what's known about a puzzle. */
+export const suggestTagsSchema = z
+  .object({
+    title: z.string().trim().max(200).optional(),
+    brand: z.string().trim().max(100).optional(),
+    /** Photos already uploaded (the finished puzzle and/or its box). */
+    imageKeys: z.array(imageKeySchema).max(2).default([]),
+  })
+  .refine(
+    (input) => input.title || input.imageKeys.length,
+    'A title or a photo is needed to suggest tags',
+  );
+
+export type SuggestTagsInput = z.input<typeof suggestTagsSchema>;
+
+export interface SuggestTagsResult {
+  tags: string[];
 }
 
 export const createUploadSchema = z.object({

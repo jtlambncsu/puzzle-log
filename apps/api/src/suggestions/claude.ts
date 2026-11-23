@@ -3,7 +3,11 @@ import { betaZodOutputFormat } from '@anthropic-ai/sdk/helpers/beta/zod';
 import { GetParameterCommand, SSMClient } from '@aws-sdk/client-ssm';
 import { z } from 'zod';
 import { MAX_TAGS, tagSchema, uniqueTags, type PuzzleSuggestion } from '@puzzle-log/shared';
-import { SuggestionUnavailableError, type PuzzleSuggester } from './types.js';
+import {
+  SuggestionUnavailableError,
+  type PuzzleSuggester,
+  type TagSuggestionInput,
+} from './types.js';
 
 /**
  * Sonnet: naming a puzzle from a photo doesn't need the most capable model, and Sonnet costs
@@ -18,6 +22,12 @@ const SYSTEM_PROMPT = `You help someone catalog the jigsaw puzzles they have fin
 - tags: 1 to 5 short tags that would help them search their collection later: franchises (Star Wars, Disney), subjects (Cats, Lighthouses), styles or settings (Landscape, Christmas). When one of their existing tags fits, use it with exactly the same spelling.
 
 If the photo doesn't show a jigsaw puzzle, describe what it shows in the same format.`;
+
+const TAGS_PROMPT = `You suggest tags for one jigsaw puzzle in someone's collection, so they can find it again by searching. You may get a photo of the finished puzzle, a photo of its box, its title and its brand.
+
+Suggest 2 to 5 short tags: franchises or licences (Star Wars, Disney), the artist if known (Thomas Kinkade), subjects (Cats, Lighthouses), styles, seasons or settings (Landscape, Christmas). When one of their existing tags fits, use it with exactly the same spelling. Don't repeat the brand or the piece count, and don't tag something you can't see or tell from the title.`;
+
+const tagsSchema = z.object({ tags: z.array(z.string()) });
 
 const suggestionSchema = z.object({
   title: z.string(),
@@ -97,19 +107,67 @@ export class ClaudeSuggester implements PuzzleSuggester {
     }
     return cleanSuggestion(output);
   }
+
+  async suggestTags(input: TagSuggestionInput, knownTags: readonly string[]): Promise<string[]> {
+    const details = [
+      input.title && `Title: ${input.title}`,
+      input.brand && `Brand: ${input.brand}`,
+      knownTags.length ? `Their existing tags: ${knownTags.join(', ')}` : 'They have no tags yet.',
+    ].filter(Boolean);
+    let response;
+    try {
+      const client = await this.getClient();
+      response = await client.beta.messages.parse({
+        model: MODEL,
+        // A handful of tags is a few dozen tokens; this caps the worst case at about 4 cents.
+        max_tokens: 4000,
+        output_config: { effort: 'low', format: betaZodOutputFormat(tagsSchema) },
+        betas: ['server-side-fallback-2026-07-01'],
+        fallbacks: 'default',
+        system: TAGS_PROMPT,
+        messages: [
+          {
+            role: 'user',
+            content: [
+              ...input.imageUrls.map((url) => ({
+                type: 'image' as const,
+                source: { type: 'url' as const, url },
+              })),
+              { type: 'text', text: details.join('\n') },
+            ],
+          },
+        ],
+      });
+    } catch (error) {
+      if (error instanceof Anthropic.AuthenticationError) this.client = undefined;
+      throw new SuggestionUnavailableError('The suggestion service is unavailable', {
+        cause: error,
+      });
+    }
+    const output = response.parsed_output;
+    if (response.stop_reason === 'refusal' || !output) {
+      throw new SuggestionUnavailableError(`No tags (stop reason: ${response.stop_reason})`);
+    }
+    return cleanTags(output.tags).slice(0, 5);
+  }
+}
+
+function cleanTags(tags: readonly string[]) {
+  return uniqueTags(
+    tags.flatMap((tag) => {
+      const result = tagSchema.safeParse(tag);
+      return result.success ? [result.data] : [];
+    }),
+  );
 }
 
 /** Keeps only values our own schema accepts, so a suggestion can always be saved. */
 export function cleanSuggestion(output: z.infer<typeof suggestionSchema>): PuzzleSuggestion {
-  const tags = output.tags.flatMap((tag) => {
-    const result = tagSchema.safeParse(tag);
-    return result.success ? [result.data] : [];
-  });
   const brand = output.brand?.trim().slice(0, 100);
   return {
     title: output.title.trim().slice(0, 200) || 'Untitled puzzle',
     ...(brand && { brand }),
-    tags: uniqueTags(tags).slice(0, MAX_TAGS),
+    tags: cleanTags(output.tags).slice(0, MAX_TAGS),
   };
 }
 

@@ -112,13 +112,17 @@ export function createQueryClient() {
 }
 
 export interface CreatePuzzleVariables {
+  /** May already hold `imageKey` / `boxImageKey` for photos uploaded earlier. */
   input: CreatePuzzleInput;
+  /** The finished puzzle's photo, uploaded unless `input.imageKey` is set. */
   photo?: File;
   rotation?: Rotation;
+  /** A photo of the box, uploaded unless `input.boxImageKey` is set. */
+  boxPhoto?: File;
 }
 
 /** Shrinks (and rotates) a photo and uploads it to S3, returning its key. */
-async function uploadPreparedPhoto(api: PuzzlesApi, photo: Blob, rotation: Rotation = 0) {
+export async function uploadPreparedPhoto(api: PuzzlesApi, photo: Blob, rotation: Rotation = 0) {
   const prepared = await compressImage(photo, { rotation });
   const target = await api.createUpload(prepared.type);
   await uploadPhoto(target, prepared);
@@ -132,10 +136,13 @@ async function uploadPreparedPhoto(api: PuzzlesApi, photo: Blob, rotation: Rotat
  */
 export async function savePuzzle(
   api: PuzzlesApi,
-  { input, photo, rotation }: CreatePuzzleVariables,
+  { input, photo, rotation, boxPhoto }: CreatePuzzleVariables,
 ) {
-  const imageKey = photo ? await uploadPreparedPhoto(api, photo, rotation) : undefined;
-  return api.create({ ...input, imageKey });
+  const [imageKey, boxImageKey] = await Promise.all([
+    input.imageKey ?? (photo && uploadPreparedPhoto(api, photo, rotation)),
+    input.boxImageKey ?? (boxPhoto && uploadPreparedPhoto(api, boxPhoto)),
+  ]);
+  return api.create({ ...input, imageKey, boxImageKey });
 }
 
 export function useCreatePuzzle() {

@@ -6,6 +6,8 @@ import {
   type CreatePuzzleInput,
   type ProductInfo,
   type PuzzleSuggestion,
+  type SuggestTagsInput,
+  type SuggestTagsResult,
   type Puzzle,
   type StartTimerInput,
   type UpdatePuzzleInput,
@@ -25,7 +27,15 @@ export const db = {
   /** What the fake AI suggests, by puzzle id. Missing means the suggestion fails (503). */
   suggestions: new Map<string, PuzzleSuggestion>(),
   suggestCalls: [] as string[],
+  /** What the fake AI suggests as tags, and the requests it got. */
+  tagSuggestions: [] as string[],
+  tagRequests: [] as SuggestTagsInput[],
+  /** Upload keys are numbered per test: photo-1, photo-2... */
+  uploadCount: 0,
   reset() {
+    this.uploadCount = 0;
+    this.tagSuggestions = [];
+    this.tagRequests = [];
     this.suggestions.clear();
     this.suggestCalls = [];
     this.products.clear();
@@ -69,6 +79,7 @@ export const handlers = [
       ...input,
       ...(input.barcode && { barcode: normalizeBarcode(input.barcode) }),
       ...(input.imageKey && { imageUrl: `${S3_URL}${input.imageKey}?signed` }),
+      ...(input.boxImageKey && { boxImageUrl: `${S3_URL}${input.boxImageKey}?signed` }),
     });
     return HttpResponse.json(puzzle, { status: 201 });
   }),
@@ -87,6 +98,8 @@ export const handlers = [
     // Like the real API, moving a puzzle out of in progress stops its timer.
     if (patch.status && patch.status !== 'in_progress') updated = stopTimer(updated);
     if (patch.imageKey) updated.imageUrl = `${S3_URL}${patch.imageKey}?signed`;
+    if (patch.boxImageKey) updated.boxImageUrl = `${S3_URL}${patch.boxImageKey}?signed`;
+    if (patch.boxImageKey === null) delete updated.boxImageUrl;
     db.puzzles.set(updated.id, updated);
     return HttpResponse.json(updated);
   }),
@@ -126,6 +139,11 @@ export const handlers = [
     return HttpResponse.json(updated);
   }),
 
+  http.post('/api/suggestions/tags', async ({ request }) => {
+    db.tagRequests.push((await request.json()) as SuggestTagsInput);
+    return HttpResponse.json({ tags: db.tagSuggestions } satisfies SuggestTagsResult);
+  }),
+
   // Downloading a stored photo (to rotate it).
   http.get(`${S3_URL}*`, () =>
     HttpResponse.arrayBuffer(new Uint8Array([0xff, 0xd8, 0xff]).buffer, {
@@ -151,11 +169,12 @@ export const handlers = [
 
   http.post('/api/uploads', async ({ request }) => {
     const { contentType } = (await request.json()) as { contentType: string };
+    const key = `uploads/test-user/photo-${++db.uploadCount}`;
     return HttpResponse.json(
       {
-        key: 'uploads/test-user/photo-1',
+        key,
         url: S3_URL,
-        fields: { key: 'uploads/test-user/photo-1', 'Content-Type': contentType },
+        fields: { key, 'Content-Type': contentType },
       },
       { status: 201 },
     );

@@ -59,4 +59,16 @@ describe('photoParts', () => {
     puzzles.push(puzzle({ id: 'no-photo' }));
     expect(photoParts(puzzles).map((part) => part.length)).toEqual([PHOTOS_PER_ZIP, 5]);
   });
+
+  it('includes box photos, named apart from the finished photo', () => {
+    const entries = photoParts([
+      puzzle({ imageUrl: 'https://x/a', boxImageUrl: 'https://x/b' }),
+      puzzle({ id: 'ffffffff-2', title: 'Wish', boxImageUrl: 'https://x/c' }),
+    ]).flat();
+    expect(entries.map((entry) => entry.name)).toEqual([
+      'hogwarts-at-night-1a2b3c4d.jpg',
+      'hogwarts-at-night-1a2b3c4d-box.jpg',
+      'wish-ffffffff-box.jpg',
+    ]);
+  });
 });

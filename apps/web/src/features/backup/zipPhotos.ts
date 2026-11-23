@@ -1,20 +1,19 @@
 import { zipSync } from 'fflate';
-import type { Puzzle } from '@puzzle-log/shared';
 import { downloadPhoto } from '@/api/queries';
-import { photoFileName } from '@/lib/export';
+import type { PhotoEntry } from '@/lib/export';
 import { mapWithConcurrency } from '@/lib/mapWithConcurrency';
 
 /**
- * Downloads puzzles' photos and zips them, named as in the spreadsheet's Photo column.
+ * Downloads photos and zips them, named as in the spreadsheet's Photo and Box photo columns.
  * Photos are stored, not compressed again: JPEGs don't shrink, and it saves the phone work.
  */
-export async function zipPhotos(puzzles: readonly Puzzle[], onProgress: () => void) {
+export async function zipPhotos(entries: readonly PhotoEntry[], onProgress: () => void) {
   const files: Record<string, Uint8Array> = {};
   let failed = 0;
-  await mapWithConcurrency(puzzles, 4, async (puzzle) => {
+  await mapWithConcurrency(entries, 4, async (entry) => {
     try {
-      const res = await downloadPhoto(puzzle.imageUrl!);
-      files[photoFileName(puzzle)] = new Uint8Array(await res.arrayBuffer());
+      const res = await downloadPhoto(entry.url);
+      files[entry.name] = new Uint8Array(await res.arrayBuffer());
     } catch {
       failed++;
     }

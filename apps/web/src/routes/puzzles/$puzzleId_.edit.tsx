@@ -40,6 +40,7 @@ function EditPuzzlePage() {
       <h1 className="mb-4 font-heading text-xl font-semibold">Edit puzzle</h1>
       <PuzzleForm
         withPhoto={false}
+        savedImageKeys={[puzzle.imageKey, puzzle.boxImageKey].filter((key): key is string => !!key)}
         // Re-mount if a different puzzle loads, so the form starts from its values.
         key={puzzle.id}
         defaultValues={puzzleToFormValues(puzzle)}
