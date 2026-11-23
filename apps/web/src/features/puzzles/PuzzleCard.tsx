@@ -5,6 +5,7 @@ import { Badge } from '@/components/ui/badge';
 import { STATUS_INFO } from '@/lib/status';
 import { Card, CardContent } from '@/components/ui/card';
 import { formatDate, puzzleSubtitle } from './format';
+import { Stars } from './StarRating';
 
 export function PuzzleCard({ puzzle }: { puzzle: Puzzle }) {
   return (
@@ -20,6 +21,7 @@ export function PuzzleCard({ puzzle }: { puzzle: Puzzle }) {
         </div>
         <CardContent className="space-y-0.5 p-3">
           <h2 className="line-clamp-2 font-medium">{puzzle.title}</h2>
+          {puzzle.rating && <Stars rating={puzzle.rating} className="[&_svg]:size-3.5" />}
           {puzzleSubtitle(puzzle) && (
             <p className="text-sm text-muted-foreground">{puzzleSubtitle(puzzle)}</p>
           )}

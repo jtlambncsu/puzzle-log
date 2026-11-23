@@ -4,6 +4,8 @@ import { ArrowLeftIcon } from 'lucide-react';
 import { puzzlesQueryOptions, useApi } from '@/api/queries';
 import { Button } from '@/components/ui/button';
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
+import { PuzzlePhoto } from '@/features/puzzles/PuzzleCard';
+import { Stars } from '@/features/puzzles/StarRating';
 import { RankedBars } from '@/features/stats/RankedBars';
 import { StatTile } from '@/features/stats/StatTile';
 import { YearChart } from '@/features/stats/YearChart';
@@ -78,6 +80,67 @@ function StatsPage() {
               </CardHeader>
               <CardContent>
                 <RankedBars items={stats.topBrands} label="Puzzles finished by brand" />
+              </CardContent>
+            </Card>
+          )}
+
+          {stats.favorites.length > 0 && (
+            <Card>
+              <CardHeader>
+                <CardTitle>Favorites</CardTitle>
+              </CardHeader>
+              <CardContent>
+                {stats.averageRating && (
+                  <p className="mb-2 text-sm text-muted-foreground">
+                    Average rating {stats.averageRating.toFixed(1)} stars
+                  </p>
+                )}
+                <ul className="divide-y" aria-label="Favorite puzzles">
+                  {stats.favorites.map((puzzle) => (
+                    <li key={puzzle.id}>
+                      <Link
+                        to="/puzzles/$puzzleId"
+                        params={{ puzzleId: puzzle.id }}
+                        className="flex items-center gap-3 py-2"
+                      >
+                        <PuzzlePhoto
+                          puzzle={puzzle}
+                          className="aspect-square size-12 shrink-0 rounded-md"
+                        />
+                        <span className="min-w-0 flex-1 truncate">{puzzle.title}</span>
+                        <Stars rating={puzzle.rating!} />
+                      </Link>
+                    </li>
+                  ))}
+                </ul>
+              </CardContent>
+            </Card>
+          )}
+
+          {stats.paceByDifficulty.length > 0 && (
+            <Card>
+              <CardHeader>
+                <CardTitle>Pace by difficulty</CardTitle>
+              </CardHeader>
+              <CardContent>
+                <table className="w-full text-sm">
+                  <thead className="text-left text-muted-foreground">
+                    <tr>
+                      <th className="py-1 font-normal">Difficulty</th>
+                      <th className="py-1 text-right font-normal">Timed</th>
+                      <th className="py-1 text-right font-normal">Pieces an hour</th>
+                    </tr>
+                  </thead>
+                  <tbody className="tabular-nums">
+                    {stats.paceByDifficulty.map((row) => (
+                      <tr key={row.difficulty} className="border-t">
+                        <td className="py-1.5 capitalize">{row.difficulty}</td>
+                        <td className="py-1.5 text-right">{row.puzzles}</td>
+                        <td className="py-1.5 text-right">{Math.round(row.piecesPerHour)}</td>
+                      </tr>
+                    ))}
+                  </tbody>
+                </table>
               </CardContent>
             </Card>
           )}

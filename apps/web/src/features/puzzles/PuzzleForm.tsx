@@ -4,7 +4,7 @@ import { zodResolver } from '@hookform/resolvers/zod';
 import { useMutation } from '@tanstack/react-query';
 import { ImagePlusIcon, Loader2Icon, RotateCwIcon, SparklesIcon, XIcon } from 'lucide-react';
 import { toast } from 'sonner';
-import { MAX_TAGS, MAX_UPLOAD_BYTES, uniqueTags } from '@puzzle-log/shared';
+import { DIFFICULTIES, MAX_TAGS, MAX_UPLOAD_BYTES, uniqueTags } from '@puzzle-log/shared';
 import { uploadPreparedPhoto, useAllTags, useApi } from '@/api/queries';
 import { Button } from '@/components/ui/button';
 import { Field, FieldDescription, FieldError, FieldGroup, FieldLabel } from '@/components/ui/field';
@@ -14,7 +14,9 @@ import { nextRotation, type Rotation } from '@/lib/image';
 import { readPhotoDate } from '@/lib/photoDate';
 import { PhotoPreview } from './PhotoPreview';
 import { emptyPuzzleForm, hasStarted, puzzleFormSchema, type PuzzleFormValues } from './puzzleForm';
+import { StarRating } from './StarRating';
 import { StatusPicker } from './StatusPicker';
+import { ToggleGroup, ToggleGroupItem } from '@/components/ui/toggle-group';
 import { TagInput } from './TagInput';
 
 /** The photos chosen in the form, and keys of any already uploaded (for tag suggestions). */
@@ -319,6 +321,85 @@ export function PuzzleForm({
           />
           <FieldError errors={[errors.barcode]} />
         </Field>
+
+        {status === 'done' && (
+          <fieldset className="space-y-4 rounded-xl border p-4">
+            <legend className="px-1 text-sm font-medium">How was it?</legend>
+            <Field>
+              <FieldLabel htmlFor="rating">Rating</FieldLabel>
+              <Controller
+                control={control}
+                name="rating"
+                render={({ field }) => (
+                  <StarRating id="rating" value={field.value} onChange={field.onChange} />
+                )}
+              />
+            </Field>
+            <Field>
+              <FieldLabel htmlFor="difficulty">Difficulty</FieldLabel>
+              <Controller
+                control={control}
+                name="difficulty"
+                render={({ field }) => (
+                  <ToggleGroup
+                    id="difficulty"
+                    type="single"
+                    variant="outline"
+                    spacing={0}
+                    value={field.value}
+                    // Tapping the chosen level again clears it ('').
+                    onValueChange={field.onChange}
+                    className="w-full"
+                  >
+                    {DIFFICULTIES.map((level) => (
+                      <ToggleGroupItem key={level} value={level} className="flex-1 capitalize">
+                        {level}
+                      </ToggleGroupItem>
+                    ))}
+                  </ToggleGroup>
+                )}
+              />
+            </Field>
+            <div className="grid grid-cols-2 gap-4">
+              <Field data-invalid={!!errors.missingPieces}>
+                <FieldLabel htmlFor="missingPieces">Missing pieces</FieldLabel>
+                <Input
+                  id="missingPieces"
+                  inputMode="numeric"
+                  placeholder="0"
+                  aria-invalid={!!errors.missingPieces}
+                  {...register('missingPieces')}
+                />
+                <FieldError errors={[errors.missingPieces]} />
+              </Field>
+              <Field>
+                <FieldLabel htmlFor="wouldRedo">Do it again?</FieldLabel>
+                <Controller
+                  control={control}
+                  name="wouldRedo"
+                  render={({ field }) => (
+                    <ToggleGroup
+                      id="wouldRedo"
+                      type="single"
+                      variant="outline"
+                      spacing={0}
+                      value={field.value}
+                      onValueChange={field.onChange}
+                      className="w-full"
+                    >
+                      <ToggleGroupItem value="yes" className="flex-1">
+                        Yes
+                      </ToggleGroupItem>
+                      <ToggleGroupItem value="no" className="flex-1">
+                        No
+                      </ToggleGroupItem>
+                    </ToggleGroup>
+                  )}
+                />
+              </Field>
+            </div>
+          </fieldset>
+        )}
 
         <Field data-invalid={!!errors.notes}>
           <FieldLabel htmlFor="notes">Notes</FieldLabel>

@@ -46,4 +46,60 @@ describe('puzzleStats', () => {
   it('handles an empty log', () => {
     expect(puzzleStats([]).perYear).toEqual([]);
   });
+
+  it('lists favorites, averages ratings, and works out pace by difficulty', () => {
+    const hour = 3_600_000;
+    const session = (hours: number) => [
+      {
+        start: '2026-01-01T00:00:00Z',
+        end: new Date(Date.parse('2026-01-01T00:00:00Z') + hours * hour).toISOString(),
+      },
+    ];
+    const stats = puzzleStats([
+      {
+        id: 'a',
+        userId: 'u',
+        createdAt: '1',
+        title: 'Loved',
+        rating: 5,
+        completedAt: '2026-01-01',
+      },
+      {
+        id: 'b',
+        userId: 'u',
+        createdAt: '2',
+        title: 'Liked',
+        rating: 4,
+        difficulty: 'easy',
+        pieceCount: 500,
+        sessions: session(2),
+      },
+      {
+        id: 'c',
+        userId: 'u',
+        createdAt: '3',
+        title: 'Meh',
+        rating: 2,
+        difficulty: 'easy',
+        pieceCount: 1000,
+        sessions: session(2),
+      },
+      {
+        id: 'd',
+        userId: 'u',
+        createdAt: '4',
+        title: 'Hard one',
+        difficulty: 'hard',
+        pieceCount: 1000,
+        sessions: session(10),
+      },
+      { id: 'e', userId: 'u', createdAt: '5', title: 'Not done', status: 'owned', rating: 5 },
+    ]);
+    expect(stats.favorites.map((p) => p.title)).toEqual(['Loved', 'Liked']);
+    expect(stats.averageRating).toBeCloseTo(11 / 3);
+    expect(stats.paceByDifficulty).toEqual([
+      { difficulty: 'easy', puzzles: 2, piecesPerHour: 375 },
+      { difficulty: 'hard', puzzles: 1, piecesPerHour: 100 },
+    ]);
+  });
 });
