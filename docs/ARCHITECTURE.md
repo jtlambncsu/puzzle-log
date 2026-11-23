@@ -121,6 +121,13 @@ or rotated ([ADR 0025](decisions/0025-recognizing-imported-photos.md)). `/review
 brand and tags, asked for a few puzzles ahead. The Anthropic key is read from SSM Parameter
 Store. See [ADR 0024](decisions/0024-album-import-ai-suggestions.md).
 
+### Backup
+
+`/backup` (from the More page) builds a CSV of the whole log with Papa Parse, and zips
+photos 40 at a time with fflate, all in the browser from the cached list and signed photo
+URLs. Files are saved through the share sheet on phones. See
+[ADR 0028](decisions/0028-backup-export.md).
+
 ## Local development
 
 `npm run dev` runs the API on :3001 (in-memory storage, no login, uploads off) and the web

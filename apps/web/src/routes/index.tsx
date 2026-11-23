@@ -3,6 +3,7 @@ import { useSuspenseQuery } from '@tanstack/react-query';
 import {
   ChartColumnIcon,
   ChevronRightIcon,
+  EllipsisIcon,
   FolderInputIcon,
   ImagesIcon,
   PlusIcon,
@@ -81,15 +82,16 @@ function PuzzleListPage() {
         </h1>
         <div className="flex">
           <Button asChild variant="ghost" size="sm">
-            <Link to="/puzzles/import">
-              <FolderInputIcon aria-hidden />
-              Import
-            </Link>
-          </Button>
-          <Button asChild variant="ghost" size="sm">
             <Link to="/stats">
               <ChartColumnIcon aria-hidden />
               Stats
+            </Link>
+          </Button>
+          {/* Import, backup and other tools live on the More page. */}
+          <Button asChild variant="ghost" size="sm">
+            <Link to="/more">
+              <EllipsisIcon aria-hidden />
+              More
             </Link>
           </Button>
         </div>
