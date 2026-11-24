@@ -2,7 +2,13 @@ import Anthropic, { type ClientOptions } from '@anthropic-ai/sdk';
 import { betaZodOutputFormat } from '@anthropic-ai/sdk/helpers/beta/zod';
 import { GetParameterCommand, SSMClient } from '@aws-sdk/client-ssm';
 import { z } from 'zod';
-import { MAX_TAGS, tagSchema, uniqueTags, type PuzzleSuggestion } from '@puzzle-log/shared';
+import {
+  MAX_TAGS,
+  tagSchema,
+  uniqueTags,
+  type BoxDetails,
+  type PuzzleSuggestion,
+} from '@puzzle-log/shared';
 import {
   SuggestionUnavailableError,
   type PuzzleSuggester,
@@ -26,6 +32,20 @@ If the photo doesn't show a jigsaw puzzle, describe what it shows in the same fo
 const TAGS_PROMPT = `You suggest tags for one jigsaw puzzle in someone's collection, so they can find it again by searching. You may get a photo of the finished puzzle, a photo of its box, its title and its brand.
 
 Suggest 2 to 5 short tags: franchises or licences (Star Wars, Disney), the artist if known (Thomas Kinkade), subjects (Cats, Lighthouses), styles, seasons or settings (Landscape, Christmas). When one of their existing tags fits, use it with exactly the same spelling. Don't repeat the brand or the piece count, and don't tag something you can't see or tell from the title.`;
+
+const BOX_PROMPT = `You read the box of a jigsaw puzzle from a photo, to fill in a catalog entry. Report only what is printed on the box and legible in the photo; never guess.
+
+- title: the puzzle's name as printed, in Title Case. Not the series or collection name, unless it's the only name on the box.
+- brand: the manufacturer (for example Ravensburger, Buffalo Games, Springbok), from its logo or name.
+- pieceCount: the number of pieces, usually printed large ("1000 pieces", "1000 Teile").
+
+Use null for anything you can't read. If the photo isn't of a puzzle box, use null for all three.`;
+
+const boxSchema = z.object({
+  title: z.string().nullable(),
+  brand: z.string().nullable(),
+  pieceCount: z.number().nullable(),
+});
 
 const tagsSchema = z.object({ tags: z.array(z.string()) });
 
@@ -150,6 +170,53 @@ export class ClaudeSuggester implements PuzzleSuggester {
     }
     return cleanTags(output.tags).slice(0, 5);
   }
+
+  async readBox(imageUrl: string): Promise<BoxDetails> {
+    let response;
+    try {
+      const client = await this.getClient();
+      response = await client.beta.messages.parse({
+        model: MODEL,
+        // Three short fields; this caps the worst case at about 4 cents.
+        max_tokens: 4000,
+        output_config: { effort: 'low', format: betaZodOutputFormat(boxSchema) },
+        betas: ['server-side-fallback-2026-07-01'],
+        fallbacks: 'default',
+        system: BOX_PROMPT,
+        messages: [
+          {
+            role: 'user',
+            content: [
+              { type: 'image', source: { type: 'url', url: imageUrl } },
+              { type: 'text', text: 'Read this puzzle box.' },
+            ],
+          },
+        ],
+      });
+    } catch (error) {
+      if (error instanceof Anthropic.AuthenticationError) this.client = undefined;
+      throw new SuggestionUnavailableError('The suggestion service is unavailable', {
+        cause: error,
+      });
+    }
+    const output = response.parsed_output;
+    if (response.stop_reason === 'refusal' || !output) {
+      throw new SuggestionUnavailableError(`No box details (stop reason: ${response.stop_reason})`);
+    }
+    return cleanBoxDetails(output);
+  }
+}
+
+/** Keeps only values the puzzle form accepts; anything else is left blank. */
+export function cleanBoxDetails(output: z.infer<typeof boxSchema>): BoxDetails {
+  const title = output.title?.trim().slice(0, 200);
+  const brand = output.brand?.trim().slice(0, 100);
+  const pieces = output.pieceCount;
+  const pieceCount =
+    pieces !== null && Number.isInteger(pieces) && pieces > 0 && pieces <= 100_000
+      ? pieces
+      : undefined;
+  return { ...(title && { title }), ...(brand && { brand }), ...(pieceCount && { pieceCount }) };
 }
 
 function cleanTags(tags: readonly string[]) {

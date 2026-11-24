@@ -200,6 +200,18 @@ export interface SuggestTagsResult {
   tags: string[];
 }
 
+/** `POST /api/suggestions/box`: reads what's printed on a box photo already uploaded. */
+export const readBoxSchema = z.object({ imageKey: imageKeySchema });
+
+export type ReadBoxInput = z.input<typeof readBoxSchema>;
+
+/** What could be read off the box. Anything not legible is left out. */
+export interface BoxDetails {
+  title?: string;
+  brand?: string;
+  pieceCount?: number;
+}
+
 export const createUploadSchema = z.object({
   contentType: z.string().regex(/^image\/[\w.+-]+$/, 'Only images can be uploaded'),
 });

@@ -1,4 +1,4 @@
-import type { PuzzleSuggestion } from '@puzzle-log/shared';
+import type { BoxDetails, PuzzleSuggestion } from '@puzzle-log/shared';
 
 /** Suggests a title, brand and tags for a finished puzzle from its photo. */
 export interface PuzzleSuggester {
@@ -13,6 +13,12 @@ export interface PuzzleSuggester {
    * finished puzzle and/or its box).
    */
   suggestTags(input: TagSuggestionInput, knownTags: readonly string[]): Promise<string[]>;
+
+  /**
+   * Reads the title, brand and piece count printed on a puzzle box.
+   * @param imageUrl A URL the suggester can fetch the box photo from.
+   */
+  readBox(imageUrl: string): Promise<BoxDetails>;
 }
 
 export interface TagSuggestionInput {

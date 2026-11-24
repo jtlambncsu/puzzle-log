@@ -3,6 +3,8 @@ import type {
   CreatePuzzleInput,
   Puzzle,
   StartTimerInput,
+  ReadBoxInput,
+  BoxDetails,
   SuggestTagsInput,
   SuggestTagsResult,
   UpdatePuzzleInput,
@@ -92,6 +94,9 @@ export function createPuzzlesApi(getAccessToken: GetAccessToken) {
         method: 'POST',
         body: JSON.stringify(input),
       }),
+    /** Reads the title, brand and piece count off an uploaded box photo (AI). */
+    readBox: (input: ReadBoxInput) =>
+      request<BoxDetails>('/suggestions/box', { method: 'POST', body: JSON.stringify(input) }),
     remove: (id: string) =>
       request<void>(`/puzzles/${encodeURIComponent(id)}`, { method: 'DELETE' }),
     lookupBarcode: (barcode: string) =>

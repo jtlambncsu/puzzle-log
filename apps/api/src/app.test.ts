@@ -407,7 +407,11 @@ describe('puzzle timer', () => {
 
 describe('AI suggestions for imported puzzles', () => {
   function suggestApp(suggest: PuzzleSuggester['suggest']) {
-    const suggester = { suggest: vi.fn(suggest), suggestTags: vi.fn(async () => []) };
+    const suggester = {
+      suggest: vi.fn(suggest),
+      suggestTags: vi.fn(async () => []),
+      readBox: vi.fn(),
+    };
     return { app: testApp({ photos: fakePhotos(), suggester }), suggester };
   }
 
@@ -530,7 +534,7 @@ describe('tag suggestions', () => {
   function tagsApp(
     suggestTags: PuzzleSuggester['suggestTags'] = async () => ['Disney', 'Castles'],
   ) {
-    const suggester = { suggest: vi.fn(), suggestTags: vi.fn(suggestTags) };
+    const suggester = { suggest: vi.fn(), suggestTags: vi.fn(suggestTags), readBox: vi.fn() };
     return { app: testApp({ photos: fakePhotos(), suggester }), suggester };
   }
 
@@ -662,5 +666,42 @@ describe('ratings', () => {
         ).status,
       ).toBe(400);
     }
+  });
+});
+
+describe('reading a box', () => {
+  function boxApp(readBox: PuzzleSuggester['readBox']) {
+    const suggester = { suggest: vi.fn(), suggestTags: vi.fn(), readBox: vi.fn(readBox) };
+    return { app: testApp({ photos: fakePhotos(), suggester }), suggester };
+  }
+
+  it("reads the user's own box photo", async () => {
+    const { app, suggester } = boxApp(async () => ({ title: 'Paris Café', pieceCount: 1000 }));
+
+    const res = await request(app)
+      .post('/api/suggestions/box')
+      .set(alice)
+      .send({ imageKey: 'uploads/alice/box' });
+
+    expect(res.status).toBe(200);
+    expect(res.body).toEqual({ title: 'Paris Café', pieceCount: 1000 });
+    expect(suggester.readBox).toHaveBeenCalledWith(
+      'https://bucket.example/uploads/alice/box?signed',
+    );
+  });
+
+  it("rejects someone else's photo and reports outages", async () => {
+    const { app } = boxApp(async () => {
+      throw new SuggestionUnavailableError('down');
+    });
+    const post = (body: object) => request(app).post('/api/suggestions/box').set(alice).send(body);
+
+    expect((await post({ imageKey: 'uploads/bob/x' })).status).toBe(400);
+    expect((await post({})).status).toBe(400);
+    expect((await post({ imageKey: 'uploads/alice/x' })).status).toBe(503);
+    expect(
+      (await request(testApp()).post('/api/suggestions/box').set(alice).send({ imageKey: 'x' }))
+        .status,
+    ).toBe(501);
   });
 });

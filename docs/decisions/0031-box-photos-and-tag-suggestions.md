@@ -47,7 +47,8 @@ puzzle (not only for imports).
   upload through the API (the 100 KB body limit, and Lambda payload sizes). Uploading to S3
   first reuses the normal path, and the same file becomes the saved photo.
 - **Reading the title, brand and pieces from the box photo:** promising, since a box shows
-  all three, but it's a separate feature. The tag endpoint keeps its scope.
+  all three, but it's a separate feature. The tag endpoint keeps its scope. (Built later:
+  [0034](0034-fill-in-from-box.md).)
 
 ## Consequences
 
