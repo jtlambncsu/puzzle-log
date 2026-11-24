@@ -92,3 +92,49 @@ describe('suggesting tags', () => {
     expect(await screen.findByText('Lighthouses')).toBeInTheDocument();
   });
 });
+
+describe('filling in from the box', () => {
+  it("fills in what's printed on the box, without overwriting what was typed", async () => {
+    db.boxDetails = { title: 'Paris Café', brand: 'Ravensburger', pieceCount: 1000 };
+    const user = userEvent.setup();
+    renderApp('/puzzles/new');
+
+    await user.upload(await screen.findByLabelText('Box photo (optional)'), image('box.jpg'));
+    await user.type(screen.getByLabelText('Brand'), 'My brand');
+    await user.click(screen.getByRole('button', { name: 'Fill in from box' }));
+
+    await waitFor(() => expect(screen.getByLabelText('Title')).toHaveValue('Paris Café'));
+    expect(screen.getByLabelText('Pieces')).toHaveValue('1000');
+    expect(screen.getByLabelText('Brand')).toHaveValue('My brand');
+    expect(await screen.findByText('Filled in title and pieces from the box')).toBeInTheDocument();
+
+    await user.click(screen.getByRole('button', { name: /save puzzle/i }));
+    await waitFor(() => expect(db.puzzles.size).toBe(1));
+    expect([...db.puzzles.values()][0]).toMatchObject({
+      title: 'Paris Café',
+      pieceCount: 1000,
+      boxImageKey: 'uploads/test-user/photo-1',
+    });
+    expect(db.uploads).toHaveLength(1); // the photo read is the one saved
+  });
+
+  it("reads the saved box when editing, and says when it can't", async () => {
+    const puzzle = db.add({ title: 'Coast', boxImageKey: 'uploads/test-user/b' });
+    const user = userEvent.setup();
+    renderApp(`/puzzles/${puzzle.id}/edit`);
+
+    await user.click(await screen.findByRole('button', { name: 'Fill in from box' }));
+    expect(await screen.findByText(/service is unavailable right now/)).toBeInTheDocument();
+    expect(db.boxRequests).toEqual([{ imageKey: 'uploads/test-user/b' }]);
+
+    db.boxDetails = {};
+    await user.click(screen.getByRole('button', { name: 'Fill in from box' }));
+    expect(await screen.findByText(/Couldn't read the box/)).toBeInTheDocument();
+  });
+
+  it('only offers it once there is a box photo', async () => {
+    renderApp('/puzzles/new');
+    await screen.findByLabelText('Box photo (optional)');
+    expect(screen.queryByRole('button', { name: 'Fill in from box' })).not.toBeInTheDocument();
+  });
+});

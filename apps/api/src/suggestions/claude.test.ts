@@ -1,5 +1,5 @@
 import { describe, expect, it, vi } from 'vitest';
-import { apiKeyFromSsm, ClaudeSuggester, cleanSuggestion } from './claude.js';
+import { apiKeyFromSsm, ClaudeSuggester, cleanBoxDetails, cleanSuggestion } from './claude.js';
 import { SuggestionUnavailableError } from './types.js';
 
 describe('cleanSuggestion', () => {
@@ -19,6 +19,19 @@ describe('cleanSuggestion', () => {
       brand: 'Buffalo Games',
       tags: [],
     });
+  });
+});
+
+describe('cleanBoxDetails', () => {
+  it('drops blanks and piece counts that make no sense', () => {
+    expect(cleanBoxDetails({ title: ' Paris Café ', brand: '', pieceCount: 1000 })).toEqual({
+      title: 'Paris Café',
+      pieceCount: 1000,
+    });
+    expect(cleanBoxDetails({ title: null, brand: 'Springbok', pieceCount: 0 })).toEqual({
+      brand: 'Springbok',
+    });
+    expect(cleanBoxDetails({ title: null, brand: null, pieceCount: 99.5 })).toEqual({});
   });
 });
 

@@ -2,7 +2,14 @@ import { useId, useRef, useState } from 'react';
 import { Controller, useForm, useWatch } from 'react-hook-form';
 import { zodResolver } from '@hookform/resolvers/zod';
 import { useMutation } from '@tanstack/react-query';
-import { ImagePlusIcon, Loader2Icon, RotateCwIcon, SparklesIcon, XIcon } from 'lucide-react';
+import {
+  ImagePlusIcon,
+  Loader2Icon,
+  RotateCwIcon,
+  ScanTextIcon,
+  SparklesIcon,
+  XIcon,
+} from 'lucide-react';
 import { toast } from 'sonner';
 import { DIFFICULTIES, MAX_TAGS, MAX_UPLOAD_BYTES, uniqueTags } from '@puzzle-log/shared';
 import { uploadPreparedPhoto, useAllTags, useApi } from '@/api/queries';
@@ -38,7 +45,16 @@ interface PuzzleFormProps {
   withPhoto?: boolean;
   /** When editing: the saved puzzle's photos, which tag suggestions look at. */
   savedImageKeys?: string[];
+  /** When editing: the saved box photo, which "Fill in from box" reads. */
+  savedBoxImageKey?: string;
 }
+
+/** The form fields a box photo can fill in, with how a toast names them. */
+const BOX_FIELDS = [
+  ['title', 'title'],
+  ['brand', 'brand'],
+  ['pieceCount', 'pieces'],
+] as const;
 
 /** Identifies a chosen photo as uploaded (rotation changes the uploaded pixels). */
 const uploadKey = (file: File, rotation: Rotation) =>
@@ -55,6 +71,7 @@ export function PuzzleForm({
   defaultValues = emptyPuzzleForm,
   withPhoto = true,
   savedImageKeys = [],
+  savedBoxImageKey,
 }: PuzzleFormProps) {
   const api = useApi();
   const tagSuggestions = useAllTags();
@@ -120,6 +137,36 @@ export function PuzzleForm({
     },
     onError: (error) => toast.error(error.message),
   });
+  /**
+   * Fills in the title, brand and piece count printed on the box. Only empty fields are
+   * filled, so nothing the user typed is overwritten.
+   */
+  const readBox = useMutation({
+    mutationFn: async () => {
+      const imageKey = boxPhoto ? await uploadOnce(boxPhoto, 0) : savedBoxImageKey;
+      if (!imageKey) throw new Error('Add a box photo first');
+      return api.readBox({ imageKey });
+    },
+    onSuccess: (details) => {
+      const found = BOX_FIELDS.filter(([field]) => details[field] !== undefined);
+      if (!found.length) {
+        toast("Couldn't read the box. Try a photo of the front, straight on.");
+        return;
+      }
+      const filled = found.filter(([field]) => !getValues(field).trim());
+      for (const [field] of filled) {
+        setValue(field, String(details[field]), { shouldDirty: true, shouldValidate: true });
+      }
+      toast(
+        filled.length
+          ? `Filled in ${listNames(filled.map(([, name]) => name))} from the box`
+          : 'Those details are already filled in',
+      );
+    },
+    onError: (error) => toast.error(error.message),
+  });
+  const canReadBox = !!boxPhoto || !!savedBoxImageKey;
+
   const canSuggest = !!title?.trim() || !!photo || !!boxPhoto || savedImageKeys.length > 0;
 
   // Reading EXIF is async; ignore the result if the photo changed in the meantime.
@@ -199,6 +246,22 @@ export function PuzzleForm({
             setBoxPhoto(file);
           }}
         />
+      )}
+      {canReadBox && (
+        <Button
+          type="button"
+          variant="outline"
+          size="sm"
+          disabled={readBox.isPending}
+          onClick={() => readBox.mutate()}
+        >
+          {readBox.isPending ? (
+            <Loader2Icon className="animate-spin" aria-hidden />
+          ) : (
+            <ScanTextIcon aria-hidden />
+          )}
+          {readBox.isPending ? 'Reading the box…' : 'Fill in from box'}
+        </Button>
       )}
 
       <FieldGroup>
@@ -501,4 +564,11 @@ function PhotoPicker({
       {error && <FieldError>{error}</FieldError>}
     </Field>
   );
+}
+
+/** "title", "title and brand", "title, brand and pieces". */
+function listNames(names: readonly string[]) {
+  return names.length < 2
+    ? names.join('')
+    : `${names.slice(0, -1).join(', ')} and ${names[names.length - 1]}`;
 }

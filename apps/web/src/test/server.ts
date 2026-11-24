@@ -6,6 +6,8 @@ import {
   type CreatePuzzleInput,
   type ProductInfo,
   type PuzzleSuggestion,
+  type BoxDetails,
+  type ReadBoxInput,
   type SuggestTagsInput,
   type SuggestTagsResult,
   type Puzzle,
@@ -30,12 +32,17 @@ export const db = {
   /** What the fake AI suggests as tags, and the requests it got. */
   tagSuggestions: [] as string[],
   tagRequests: [] as SuggestTagsInput[],
+  /** What the fake AI reads off a box photo; undefined means it's unavailable. */
+  boxDetails: undefined as BoxDetails | undefined,
+  boxRequests: [] as ReadBoxInput[],
   /** Upload keys are numbered per test: photo-1, photo-2... */
   uploadCount: 0,
   reset() {
     this.uploadCount = 0;
     this.tagSuggestions = [];
     this.tagRequests = [];
+    this.boxDetails = undefined;
+    this.boxRequests = [];
     this.suggestions.clear();
     this.suggestCalls = [];
     this.products.clear();
@@ -142,6 +149,14 @@ export const handlers = [
   http.post('/api/suggestions/tags', async ({ request }) => {
     db.tagRequests.push((await request.json()) as SuggestTagsInput);
     return HttpResponse.json({ tags: db.tagSuggestions } satisfies SuggestTagsResult);
+  }),
+
+  http.post('/api/suggestions/box', async ({ request }) => {
+    db.boxRequests.push((await request.json()) as ReadBoxInput);
+    if (!db.boxDetails) {
+      return HttpResponse.json({ error: 'Suggestions are unavailable right now' }, { status: 503 });
+    }
+    return HttpResponse.json(db.boxDetails);
   }),
 
   // Downloading a stored photo (to rotate it).
