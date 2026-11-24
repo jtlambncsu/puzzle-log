@@ -2,7 +2,7 @@ import { createFileRoute, Link, notFound, useNavigate } from '@tanstack/react-ro
 import { useSuspenseQuery } from '@tanstack/react-query';
 import { ArrowLeftIcon, PencilIcon, Trash2Icon } from 'lucide-react';
 import { toast } from 'sonner';
-import type { Puzzle } from '@puzzle-log/shared';
+import { puzzleStatus, type Puzzle } from '@puzzle-log/shared';
 import { ApiError } from '@/api/client';
 import { puzzleQueryOptions, useApi, useDeletePuzzle } from '@/api/queries';
 import {
@@ -19,7 +19,7 @@ import {
 import { Badge } from '@/components/ui/badge';
 import { Button } from '@/components/ui/button';
 import { Skeleton } from '@/components/ui/skeleton';
-import { formatDate, puzzleSubtitle } from '@/features/puzzles/format';
+import { formatDate } from '@/features/puzzles/format';
 import { PuzzleTimer } from '@/features/puzzles/PuzzleTimer';
 import { PhotoSlots } from '@/features/puzzles/PhotoSlots';
 import { Stars } from '@/features/puzzles/StarRating';
@@ -48,6 +48,14 @@ function PuzzleDetailPage() {
   const deletePuzzle = useDeletePuzzle();
   const navigate = useNavigate();
 
+  const inProgress = puzzleStatus(puzzle) === 'in_progress';
+  const timerAndActions = (
+    <>
+      <PuzzleTimer puzzle={puzzle} />
+      <StatusActions puzzle={puzzle} />
+    </>
+  );
+
   async function handleDelete() {
     try {
       await deletePuzzle.mutateAsync(puzzle.id);
@@ -59,7 +67,7 @@ function PuzzleDetailPage() {
   }
 
   return (
-    <article className="space-y-4">
+    <article className="space-y-5">
       <Button asChild variant="ghost" size="sm" className="-ml-2">
         <Link to="/">
           <ArrowLeftIcon aria-hidden />
@@ -67,40 +75,30 @@ function PuzzleDetailPage() {
         </Link>
       </Button>
 
-      <RotatablePhoto puzzle={puzzle} />
-      <PhotoSlots puzzle={puzzle} />
-
-      <div>
-        <StatusBadge puzzle={puzzle} className="mb-2" />
-        <div className="flex items-start justify-between gap-2">
-          <h1 className="font-heading text-2xl font-semibold">{puzzle.title}</h1>
-          <Button asChild variant="outline" size="sm" className="shrink-0">
+      <header className="space-y-2">
+        <StatusBadge puzzle={puzzle} />
+        <div className="flex items-start justify-between gap-3">
+          <h1 className="font-heading text-3xl leading-tight font-semibold tracking-tight">
+            {puzzle.title}
+          </h1>
+          <Button asChild variant="outline" size="sm" className="mt-1 shrink-0">
             <Link to="/puzzles/$puzzleId/edit" params={{ puzzleId: puzzle.id }}>
               <PencilIcon aria-hidden />
               Edit
             </Link>
           </Button>
         </div>
-        {puzzleSubtitle(puzzle) && (
-          <p className="text-muted-foreground">{puzzleSubtitle(puzzle)}</p>
-        )}
-        {(puzzle.startedAt || puzzle.completedAt) && (
-          <p className="text-sm text-muted-foreground">
-            {[
-              puzzle.startedAt && `Started ${formatDate(puzzle.startedAt)}`,
-              puzzle.completedAt && `Finished ${formatDate(puzzle.completedAt)}`,
-            ]
-              .filter(Boolean)
-              .join(' · ')}
-          </p>
-        )}
-      </div>
+        <HowItWent puzzle={puzzle} />
+      </header>
 
-      <HowItWent puzzle={puzzle} />
+      {/* While it's being worked on, the timer comes first; otherwise the photo does. */}
+      {inProgress && timerAndActions}
+      <RotatablePhoto puzzle={puzzle} />
+      <PhotoSlots puzzle={puzzle} />
 
-      <PuzzleTimer puzzle={puzzle} />
+      <Facts puzzle={puzzle} />
 
-      <StatusActions puzzle={puzzle} />
+      {!inProgress && timerAndActions}
 
       {puzzle.tags && puzzle.tags.length > 0 && (
         <ul className="flex flex-wrap gap-1.5" aria-label="Tags">
@@ -117,13 +115,23 @@ function PuzzleDetailPage() {
         </ul>
       )}
 
-      {puzzle.notes && <p className="whitespace-pre-wrap">{puzzle.notes}</p>}
-
-      {puzzle.barcode && <p className="text-sm text-muted-foreground">Barcode {puzzle.barcode}</p>}
+      {puzzle.notes && (
+        <section className="rounded-2xl border bg-card p-4" aria-labelledby="notes-heading">
+          <h2 id="notes-heading" className="mb-1 text-xs font-medium text-muted-foreground">
+            Notes
+          </h2>
+          <p className="whitespace-pre-wrap">{puzzle.notes}</p>
+        </section>
+      )}
 
       <AlertDialog>
         <AlertDialogTrigger asChild>
-          <Button variant="destructive" disabled={deletePuzzle.isPending}>
+          <Button
+            variant="ghost"
+            size="sm"
+            className="text-destructive hover:bg-destructive/10 hover:text-destructive"
+            disabled={deletePuzzle.isPending}
+          >
             <Trash2Icon aria-hidden />
             Delete puzzle
           </Button>
@@ -142,6 +150,28 @@ function PuzzleDetailPage() {
         </AlertDialogContent>
       </AlertDialog>
     </article>
+  );
+}
+
+/** The puzzle's details, as a grid of small labeled values. */
+function Facts({ puzzle }: { puzzle: Puzzle }) {
+  const facts = [
+    ['Pieces', puzzle.pieceCount?.toLocaleString()],
+    ['Brand', puzzle.brand],
+    ['Started', puzzle.startedAt && formatDate(puzzle.startedAt)],
+    ['Finished', puzzle.completedAt && formatDate(puzzle.completedAt)],
+    ['Barcode', puzzle.barcode],
+  ].filter((fact): fact is [string, string] => !!fact[1]);
+  if (!facts.length) return null;
+  return (
+    <dl className="grid grid-cols-2 gap-px overflow-hidden rounded-2xl border bg-border">
+      {facts.map(([label, value]) => (
+        <div key={label} className="bg-card px-4 py-3 last:odd:col-span-2">
+          <dt className="text-xs text-muted-foreground">{label}</dt>
+          <dd className="truncate font-medium">{value}</dd>
+        </div>
+      ))}
+    </dl>
   );
 }
 

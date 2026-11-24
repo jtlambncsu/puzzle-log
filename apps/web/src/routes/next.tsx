@@ -54,7 +54,9 @@ function NextPage() {
   return (
     <div className="space-y-5">
       <div className="space-y-1">
-        <h1 className="font-heading text-xl font-semibold">What should I do next?</h1>
+        <h1 className="font-heading text-2xl font-semibold tracking-tight">
+          What should I do next?
+        </h1>
         <p className="text-sm text-muted-foreground">
           A random pick from the puzzles you own but haven't started.
         </p>

@@ -43,7 +43,7 @@ export function PuzzleTimer({ puzzle }: { puzzle: Puzzle }) {
           <p
             role="timer"
             aria-label="Total time"
-            className="font-heading text-4xl font-semibold tabular-nums"
+            className="text-4xl font-semibold tracking-tight tabular-nums"
           >
             {inProgress ? formatClock(total) : formatDuration(total)}
           </p>

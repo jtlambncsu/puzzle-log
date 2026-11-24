@@ -27,7 +27,7 @@ describe('puzzle timer', () => {
       /^1:30:0\d$/,
     );
     expect(screen.getByText(/^This session 30:0\d$/)).toBeInTheDocument();
-    expect(screen.getByText(/^Started Nov 20, 2026$/)).toBeInTheDocument();
+    expect(screen.getByText('Started').nextElementSibling).toHaveTextContent('Nov 20, 2026');
 
     await user.click(screen.getByRole('button', { name: 'Pause' }));
 

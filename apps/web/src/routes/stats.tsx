@@ -31,7 +31,7 @@ function StatsPage() {
           All puzzles
         </Link>
       </Button>
-      <h1 className="font-heading text-xl font-semibold">Your puzzle stats</h1>
+      <h1 className="font-heading text-2xl font-semibold tracking-tight">Your puzzle stats</h1>
 
       <div className="grid grid-cols-2 gap-3 sm:grid-cols-3">
         <StatTile label="Puzzles done" value={stats.statusCounts.done} />

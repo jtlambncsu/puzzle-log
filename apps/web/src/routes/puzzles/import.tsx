@@ -123,7 +123,7 @@ function ImportPage() {
 
   return (
     <div className="space-y-4">
-      <h1 className="font-heading text-xl font-semibold">Import photos</h1>
+      <h1 className="font-heading text-2xl font-semibold tracking-tight">Import photos</h1>
 
       {stage.name === 'pick' && (
         <>

@@ -1,9 +1,7 @@
 import { createFileRoute, Link } from '@tanstack/react-router';
 import { useSuspenseQuery } from '@tanstack/react-query';
 import {
-  ChartColumnIcon,
   ChevronRightIcon,
-  EllipsisIcon,
   FolderInputIcon,
   ImagesIcon,
   PlusIcon,
@@ -73,43 +71,26 @@ function PuzzleListPage() {
 
   return (
     <>
-      <div className="mb-3 flex items-center justify-between gap-2">
-        <h1 className="font-heading text-xl font-semibold">
-          Your puzzles{' '}
-          <span className="text-muted-foreground" aria-live="polite">
-            ({filtered ? `${matching.length} of ${puzzles.length}` : puzzles.length})
-          </span>
-        </h1>
-        <div className="flex">
-          <Button asChild variant="ghost" size="sm">
-            <Link to="/stats">
-              <ChartColumnIcon aria-hidden />
-              Stats
-            </Link>
-          </Button>
-          {/* Import, backup and other tools live on the More page. */}
-          <Button asChild variant="ghost" size="sm">
-            <Link to="/more">
-              <EllipsisIcon aria-hidden />
-              More
-            </Link>
-          </Button>
-        </div>
-      </div>
+      <h1 className="mb-4 font-heading text-3xl font-semibold tracking-tight">
+        Your puzzles{' '}
+        <span className="font-sans text-base font-normal text-muted-foreground" aria-live="polite">
+          ({filtered ? `${matching.length} of ${puzzles.length}` : puzzles.length})
+        </span>
+      </h1>
 
       {toReview > 0 && (
         <Link
           to="/review"
-          className="mb-3 flex items-center gap-3 rounded-xl border bg-muted/50 p-3 text-sm transition-colors hover:bg-muted"
+          className="mb-4 flex items-center gap-3 rounded-2xl border border-primary/20 bg-accent p-3 text-sm text-accent-foreground transition-colors hover:bg-accent/70"
         >
-          <FolderInputIcon className="size-5 shrink-0 text-muted-foreground" aria-hidden />
+          <FolderInputIcon className="size-5 shrink-0" aria-hidden />
           <span className="flex-1">
             <span className="font-medium">
               {toReview} imported {toReview === 1 ? 'puzzle' : 'puzzles'} to review
             </span>
-            <span className="block text-muted-foreground">Check their titles and tags</span>
+            <span className="block opacity-80">Check their titles and tags</span>
           </span>
-          <ChevronRightIcon className="size-4 text-muted-foreground" aria-hidden />
+          <ChevronRightIcon className="size-4" aria-hidden />
         </Link>
       )}
 
@@ -157,7 +138,7 @@ function EmptyState() {
     <div className="flex flex-col items-center gap-4 py-16 text-center">
       <PuzzleIcon className="size-12 text-muted-foreground/50" aria-hidden />
       <div>
-        <h1 className="font-heading text-xl font-semibold">No puzzles yet</h1>
+        <h1 className="font-heading text-2xl font-semibold">No puzzles yet</h1>
         <p className="text-muted-foreground">Finished one? Snap a photo and log it.</p>
       </div>
       <div className="flex flex-wrap justify-center gap-2">

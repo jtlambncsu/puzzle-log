@@ -53,7 +53,7 @@ function BackupPage() {
   return (
     <div className="space-y-6">
       <div className="space-y-2">
-        <h1 className="font-heading text-xl font-semibold">Backup</h1>
+        <h1 className="font-heading text-2xl font-semibold tracking-tight">Backup</h1>
         <p className="text-sm text-muted-foreground">
           A copy of your log to keep yourself. On a phone, choose “Save to Files” when the share
           sheet opens.

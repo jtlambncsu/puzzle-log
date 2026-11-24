@@ -43,15 +43,14 @@ const TOOLS = [
 function MorePage() {
   return (
     <div className="space-y-4">
-      <h1 className="font-heading text-xl font-semibold">More</h1>
-      <ul className="space-y-2">
+      <h1 className="font-heading text-2xl font-semibold tracking-tight">More</h1>
+      <ul className="divide-y overflow-hidden rounded-2xl border bg-card shadow-xs">
         {TOOLS.map(({ to, icon: Icon, title, description }) => (
           <li key={to}>
-            <Link
-              to={to}
-              className="flex items-center gap-3 rounded-xl border p-3 transition-colors hover:bg-muted"
-            >
-              <Icon className="size-5 shrink-0 text-muted-foreground" aria-hidden />
+            <Link to={to} className="flex items-center gap-3 p-3 transition-colors hover:bg-muted">
+              <span className="flex size-10 shrink-0 items-center justify-center rounded-xl bg-accent text-accent-foreground">
+                <Icon className="size-5" aria-hidden />
+              </span>
               <span className="flex-1">
                 <span className="block font-medium">{title}</span>
                 <span className="block text-sm text-muted-foreground">{description}</span>

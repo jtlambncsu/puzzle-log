@@ -264,7 +264,8 @@ export function PuzzleForm({
         </Button>
       )}
 
-      <FieldGroup>
+      {/* The fields sit on a card, so the form reads as one block on the paper background. */}
+      <FieldGroup className="rounded-2xl border bg-card p-4 shadow-xs">
         <Field>
           <FieldLabel htmlFor="status">Status</FieldLabel>
           <Controller
@@ -386,7 +387,7 @@ export function PuzzleForm({
         </Field>
 
         {status === 'done' && (
-          <fieldset className="space-y-4 rounded-xl border p-4">
+          <fieldset className="space-y-4 rounded-xl border bg-muted/40 p-4">
             <legend className="px-1 text-sm font-medium">How was it?</legend>
             <Field>
               <FieldLabel htmlFor="rating">Rating</FieldLabel>
@@ -477,7 +478,7 @@ export function PuzzleForm({
         </Field>
       </FieldGroup>
 
-      <Button type="submit" size="lg" className="w-full" disabled={isSubmitting}>
+      <Button type="submit" size="lg" className="h-11 w-full rounded-xl" disabled={isSubmitting}>
         {isSubmitting && <Loader2Icon className="animate-spin" aria-hidden />}
         {isSubmitting ? 'Saving…' : submitLabel}
       </Button>
@@ -542,7 +543,7 @@ function PhotoPicker({
       ) : (
         <label
           htmlFor={inputId}
-          className={`flex cursor-pointer flex-col items-center justify-center gap-2 rounded-xl border-2 border-dashed text-muted-foreground transition-colors hover:bg-muted/50 ${
+          className={`flex cursor-pointer flex-col items-center justify-center gap-2 rounded-2xl border-2 border-dashed bg-card/60 text-muted-foreground transition-colors hover:bg-muted/50 ${
             compact ? 'py-4' : 'aspect-[4/3]'
           }`}
         >
