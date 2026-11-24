@@ -1,5 +1,11 @@
 import { createFileRoute, Link } from '@tanstack/react-router';
-import { ChevronRightIcon, CopyIcon, DatabaseBackupIcon, FolderInputIcon } from 'lucide-react';
+import {
+  ChevronRightIcon,
+  CopyIcon,
+  DicesIcon,
+  DatabaseBackupIcon,
+  FolderInputIcon,
+} from 'lucide-react';
 
 export const Route = createFileRoute('/more')({
   component: MorePage,
@@ -12,6 +18,12 @@ const TOOLS = [
     icon: FolderInputIcon,
     title: 'Import photos',
     description: 'Add puzzles from your camera roll, duplicates skipped',
+  },
+  {
+    to: '/next',
+    icon: DicesIcon,
+    title: 'What should I do next?',
+    description: 'A random pick from the puzzles you own',
   },
   {
     to: '/duplicates',

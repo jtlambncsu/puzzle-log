@@ -13,6 +13,7 @@ import { Route as IndexRouteImport } from './routes/index'
 import { Route as BackupRouteImport } from './routes/backup'
 import { Route as DuplicatesRouteImport } from './routes/duplicates'
 import { Route as MoreRouteImport } from './routes/more'
+import { Route as NextRouteImport } from './routes/next'
 import { Route as ReviewRouteImport } from './routes/review'
 import { Route as StatsRouteImport } from './routes/stats'
 import { Route as PuzzlesPuzzleIdRouteImport } from './routes/puzzles/$puzzleId'
@@ -41,6 +42,11 @@ const DuplicatesRoute = DuplicatesRouteImport.update({
 const MoreRoute = MoreRouteImport.update({
   id: '/more',
   path: '/more',
+  getParentRoute: () => rootRouteImport,
+} as any)
+const NextRoute = NextRouteImport.update({
+  id: '/next',
+  path: '/next',
   getParentRoute: () => rootRouteImport,
 } as any)
 const ReviewRoute = ReviewRouteImport.update({
@@ -94,6 +100,7 @@ export interface FileRoutesByFullPath {
   '/backup': typeof BackupRoute
   '/duplicates': typeof DuplicatesRoute
   '/more': typeof MoreRoute
+  '/next': typeof NextRoute
   '/review': typeof ReviewRoute
   '/stats': typeof StatsRoute
   '/puzzles/$puzzleId': typeof PuzzlesPuzzleIdRoute
@@ -109,6 +116,7 @@ export interface FileRoutesByTo {
   '/backup': typeof BackupRoute
   '/duplicates': typeof DuplicatesRoute
   '/more': typeof MoreRoute
+  '/next': typeof NextRoute
   '/review': typeof ReviewRoute
   '/stats': typeof StatsRoute
   '/puzzles/$puzzleId': typeof PuzzlesPuzzleIdRoute
@@ -125,6 +133,7 @@ export interface FileRoutesById {
   '/backup': typeof BackupRoute
   '/duplicates': typeof DuplicatesRoute
   '/more': typeof MoreRoute
+  '/next': typeof NextRoute
   '/review': typeof ReviewRoute
   '/stats': typeof StatsRoute
   '/puzzles/$puzzleId': typeof PuzzlesPuzzleIdRoute
@@ -142,6 +151,7 @@ export interface FileRouteTypes {
     | '/backup'
     | '/duplicates'
     | '/more'
+    | '/next'
     | '/review'
     | '/stats'
     | '/puzzles/$puzzleId'
@@ -157,6 +167,7 @@ export interface FileRouteTypes {
     | '/backup'
     | '/duplicates'
     | '/more'
+    | '/next'
     | '/review'
     | '/stats'
     | '/puzzles/$puzzleId'
@@ -172,6 +183,7 @@ export interface FileRouteTypes {
     | '/backup'
     | '/duplicates'
     | '/more'
+    | '/next'
     | '/review'
     | '/stats'
     | '/puzzles/$puzzleId'
@@ -188,6 +200,7 @@ export interface RootRouteChildren {
   BackupRoute: typeof BackupRoute
   DuplicatesRoute: typeof DuplicatesRoute
   MoreRoute: typeof MoreRoute
+  NextRoute: typeof NextRoute
   ReviewRoute: typeof ReviewRoute
   StatsRoute: typeof StatsRoute
   PuzzlesPuzzleIdRoute: typeof PuzzlesPuzzleIdRoute
@@ -227,6 +240,13 @@ declare module '@tanstack/react-router' {
       path: '/more'
       fullPath: '/more'
       preLoaderRoute: typeof MoreRouteImport
+      parentRoute: typeof rootRouteImport
+    }
+    '/next': {
+      id: '/next'
+      path: '/next'
+      fullPath: '/next'
+      preLoaderRoute: typeof NextRouteImport
       parentRoute: typeof rootRouteImport
     }
     '/review': {
@@ -300,6 +320,7 @@ const rootRouteChildren: RootRouteChildren = {
   BackupRoute: BackupRoute,
   DuplicatesRoute: DuplicatesRoute,
   MoreRoute: MoreRoute,
+  NextRoute: NextRoute,
   ReviewRoute: ReviewRoute,
   StatsRoute: StatsRoute,
   PuzzlesPuzzleIdRoute: PuzzlesPuzzleIdRoute,

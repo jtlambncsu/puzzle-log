@@ -37,3 +37,4 @@ New decision? Copy [`0000-template.md`](0000-template.md) to the next number.
 | [0030](0030-virtualized-puzzle-list.md)        | Virtualized puzzle list with TanStack Virtual                           |
 | [0031](0031-box-photos-and-tag-suggestions.md) | Box photos, and AI tag suggestions on request                           |
 | [0032](0032-ratings.md)                        | Ratings: stars, difficulty, missing pieces, would do again              |
+| [0033](0033-what-next-picker.md)               | "What should I do next?": a random pick, filters in the URL             |
