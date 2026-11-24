@@ -12,7 +12,7 @@ function BulkAddPage() {
 
   return (
     <>
-      <h1 className="font-heading text-xl font-semibold">Add several puzzles</h1>
+      <h1 className="font-heading text-2xl font-semibold tracking-tight">Add several puzzles</h1>
       <p className="mb-4 text-sm text-muted-foreground">
         Pick up to {MAX_BULK_PHOTOS} photos. Dates are filled in from the photos when they have one;
         add a title to each and save them all at once.

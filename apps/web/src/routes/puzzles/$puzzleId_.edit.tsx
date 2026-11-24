@@ -37,7 +37,7 @@ function EditPuzzlePage() {
           Back
         </Link>
       </Button>
-      <h1 className="mb-4 font-heading text-xl font-semibold">Edit puzzle</h1>
+      <h1 className="mb-4 font-heading text-2xl font-semibold tracking-tight">Edit puzzle</h1>
       <PuzzleForm
         withPhoto={false}
         savedImageKeys={[puzzle.imageKey, puzzle.boxImageKey].filter((key): key is string => !!key)}

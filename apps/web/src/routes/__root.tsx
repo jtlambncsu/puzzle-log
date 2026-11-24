@@ -7,6 +7,7 @@ import {
 } from '@tanstack/react-router';
 import { useQueryErrorResetBoundary } from '@tanstack/react-query';
 import { AppHeader } from '@/components/AppHeader';
+import { AppNav } from '@/components/AppNav';
 import { ErrorState } from '@/components/ErrorState';
 import { OfflineBanner } from '@/components/OfflineBanner';
 import { Button } from '@/components/ui/button';
@@ -23,9 +24,11 @@ function RootLayout() {
     <div className="min-h-svh">
       <AppHeader />
       <OfflineBanner />
-      <main className="mx-auto max-w-3xl px-4 py-6">
+      {/* Bottom padding keeps the last content clear of the tab bar. */}
+      <main className="mx-auto max-w-3xl px-4 pt-5 pb-32">
         <Outlet />
       </main>
+      <AppNav />
     </div>
   );
 }

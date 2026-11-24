@@ -84,7 +84,7 @@ function DuplicatesPage() {
   return (
     <div className="space-y-4">
       <div className="space-y-2">
-        <h1 className="font-heading text-xl font-semibold">Duplicates</h1>
+        <h1 className="font-heading text-2xl font-semibold tracking-tight">Duplicates</h1>
         <p className="text-sm text-muted-foreground">
           Puzzles with nearly identical photos or the same title. Delete the extra copy, or mark
           them as different puzzles.

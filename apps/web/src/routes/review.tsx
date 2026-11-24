@@ -99,7 +99,7 @@ function ReviewPage() {
   return (
     <div className="space-y-4">
       <div className="flex items-baseline justify-between gap-2">
-        <h1 className="font-heading text-xl font-semibold">Review imports</h1>
+        <h1 className="font-heading text-2xl font-semibold tracking-tight">Review imports</h1>
         <p className="text-sm text-muted-foreground" aria-live="polite">
           {upcoming.length} left
         </p>

@@ -12,23 +12,28 @@ export function PuzzleCard({ puzzle }: { puzzle: Puzzle }) {
     <Link
       to="/puzzles/$puzzleId"
       params={{ puzzleId: puzzle.id }}
-      className="rounded-xl focus-visible:ring-3 focus-visible:ring-ring/50 focus-visible:outline-none"
+      className="group rounded-2xl focus-visible:ring-3 focus-visible:ring-ring/50 focus-visible:outline-none"
     >
-      <Card className="h-full gap-0 overflow-hidden py-0 transition-shadow hover:shadow-md">
+      <Card className="h-full gap-0 overflow-hidden rounded-2xl py-0 shadow-xs transition-shadow group-hover:shadow-md">
         <div className="relative">
           <PuzzlePhoto puzzle={puzzle} className="aspect-square" />
           <StatusBadge puzzle={puzzle} className="absolute top-2 left-2" />
         </div>
-        <CardContent className="space-y-0.5 p-3">
-          <h2 className="line-clamp-2 font-medium">{puzzle.title}</h2>
-          {puzzle.rating && <Stars rating={puzzle.rating} className="[&_svg]:size-3.5" />}
+        <CardContent className="flex flex-1 flex-col gap-1 p-3">
+          <h2 className="line-clamp-2 leading-snug font-semibold">{puzzle.title}</h2>
           {puzzleSubtitle(puzzle) && (
-            <p className="text-sm text-muted-foreground">{puzzleSubtitle(puzzle)}</p>
+            <p className="text-[0.8rem] text-muted-foreground">{puzzleSubtitle(puzzle)}</p>
           )}
-          {puzzle.completedAt && (
-            <p className="text-xs text-muted-foreground">
-              Finished {formatDate(puzzle.completedAt)}
-            </p>
+          {(puzzle.rating || puzzle.completedAt) && (
+            // Pushed to the bottom, so the dates line up across a row.
+            <div className="mt-auto flex flex-wrap items-center justify-between gap-x-2 gap-y-0.5 pt-1">
+              {puzzle.rating && <Stars rating={puzzle.rating} className="[&_svg]:size-3" />}
+              {puzzle.completedAt && (
+                <p className="text-xs text-muted-foreground">
+                  Finished {formatDate(puzzle.completedAt)}
+                </p>
+              )}
+            </div>
           )}
         </CardContent>
       </Card>
@@ -77,7 +82,10 @@ export function StatusBadge({ puzzle, className }: { puzzle: Puzzle; className?:
   const { label, icon: Icon } = STATUS_INFO[status];
   const timing = puzzle.timerStartedAt !== undefined;
   return (
-    <Badge variant="secondary" className={`gap-1 shadow-sm ${className ?? ''}`}>
+    <Badge
+      variant="secondary"
+      className={`gap-1 border-0 shadow-sm ${STATUS_BADGE_COLORS[status]} ${className ?? ''}`}
+    >
       <Icon aria-hidden />
       {label}
       {timing && (
@@ -93,3 +101,10 @@ export function StatusBadge({ puzzle, className }: { puzzle: Puzzle; className?:
     </Badge>
   );
 }
+
+/** A tint per status, so the grid can be scanned by color as well as by label. */
+const STATUS_BADGE_COLORS = {
+  in_progress: 'bg-amber-100 text-amber-900 dark:bg-amber-900/70 dark:text-amber-50',
+  owned: 'bg-sky-100 text-sky-900 dark:bg-sky-900/70 dark:text-sky-50',
+  wishlist: 'bg-rose-100 text-rose-900 dark:bg-rose-900/70 dark:text-rose-50',
+} as const;

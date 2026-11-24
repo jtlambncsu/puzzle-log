@@ -16,10 +16,15 @@ interface PuzzleFiltersProps {
   onStatusChange: (status: PuzzleStatus | undefined) => void;
 }
 
-const chipClass = (selected: boolean) =>
+const chipClass = (selected: boolean, small = false) =>
   cn(
-    'inline-flex h-8 items-center gap-1.5 rounded-full border px-3 text-sm whitespace-nowrap transition-colors',
-    selected ? 'border-primary bg-primary text-primary-foreground' : 'hover:bg-muted',
+    'inline-flex items-center gap-1.5 rounded-full border whitespace-nowrap transition-colors',
+    small ? 'h-7 px-2.5 text-xs' : 'h-8 px-3 text-sm',
+    selected
+      ? 'border-primary bg-primary text-primary-foreground'
+      : small
+        ? 'border-transparent bg-secondary text-secondary-foreground hover:bg-muted'
+        : 'bg-card hover:bg-muted',
   );
 
 /** Search box plus a row of tag chips. Tapping the selected tag again clears it. */
@@ -50,7 +55,7 @@ export function PuzzleFilters({
           onChange={(event) => onQueryChange(event.target.value)}
           enterKeyHint="search"
           // Hide the browser's own clear button; ours works the same everywhere.
-          className="h-10 pr-9 pl-9 [&::-webkit-search-cancel-button]:appearance-none"
+          className="h-11 rounded-xl bg-card pr-9 pl-9 shadow-xs [&::-webkit-search-cancel-button]:appearance-none"
         />
         {query && (
           <button
@@ -65,7 +70,7 @@ export function PuzzleFilters({
       </div>
 
       {showStatuses && (
-        <ul className="flex gap-1.5 overflow-x-auto" aria-label="Filter by status">
+        <ul className="-mx-4 flex gap-1.5 overflow-x-auto px-4" aria-label="Filter by status">
           {PUZZLE_STATUSES.map((status) => {
             const { label, icon: Icon } = STATUS_INFO[status];
             const selected = selectedStatus === status;
@@ -102,7 +107,7 @@ export function PuzzleFilters({
                     aria-pressed={selected}
                     aria-label={`${tag}, ${count} ${count === 1 ? 'puzzle' : 'puzzles'}`}
                     onClick={() => onTagChange(selected ? undefined : tag)}
-                    className={chipClass(selected)}
+                    className={chipClass(selected, true)}
                   >
                     {tag}
                     <span className={selected ? 'opacity-80' : 'text-muted-foreground'}>

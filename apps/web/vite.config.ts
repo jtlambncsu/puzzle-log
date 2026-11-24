@@ -26,8 +26,8 @@ export default defineConfig({
         description: 'Track the jigsaw puzzles you have done, own and want.',
         start_url: '/',
         display: 'standalone',
-        background_color: '#fafaf9',
-        theme_color: '#fafaf9',
+        background_color: '#faf8f3',
+        theme_color: '#faf8f3',
         icons: [
           { src: 'pwa-192x192.png', sizes: '192x192', type: 'image/png' },
           { src: 'pwa-512x512.png', sizes: '512x512', type: 'image/png' },

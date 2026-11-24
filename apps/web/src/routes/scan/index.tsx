@@ -23,7 +23,9 @@ function ScanPage() {
   return (
     <div className="space-y-6">
       <div>
-        <h1 className="font-heading text-xl font-semibold">Have I done this one?</h1>
+        <h1 className="font-heading text-2xl font-semibold tracking-tight">
+          Have I done this one?
+        </h1>
         <p className="text-sm text-muted-foreground">
           Point your camera at the barcode on the puzzle box.
         </p>

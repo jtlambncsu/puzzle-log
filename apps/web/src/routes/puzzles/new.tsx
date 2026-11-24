@@ -35,7 +35,7 @@ function NewPuzzlePage() {
   return (
     <>
       <div className="mb-4 flex items-center justify-between gap-2">
-        <h1 className="font-heading text-xl font-semibold">Add a puzzle</h1>
+        <h1 className="font-heading text-2xl font-semibold tracking-tight">Add a puzzle</h1>
         <Button asChild variant="outline" size="sm">
           <Link to="/puzzles/bulk">
             <ImagesIcon aria-hidden />

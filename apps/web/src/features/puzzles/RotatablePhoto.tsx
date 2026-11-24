@@ -15,7 +15,8 @@ export function RotatablePhoto({ puzzle }: { puzzle: Puzzle }) {
   const [rotation, setRotation] = useState<Rotation>(0);
   const rotatePhoto = useRotatePuzzlePhoto();
 
-  if (!puzzle.imageUrl) return <PuzzlePhoto puzzle={puzzle} className="aspect-square rounded-xl" />;
+  if (!puzzle.imageUrl)
+    return <PuzzlePhoto puzzle={puzzle} className="aspect-square rounded-2xl" />;
 
   async function save() {
     try {
@@ -29,7 +30,7 @@ export function RotatablePhoto({ puzzle }: { puzzle: Puzzle }) {
 
   return (
     <div className="space-y-2">
-      <div className="relative overflow-hidden rounded-xl">
+      <div className="relative overflow-hidden rounded-2xl">
         <PuzzlePhoto puzzle={puzzle} className="aspect-square" rotation={rotation} />
         <Button
           type="button"
