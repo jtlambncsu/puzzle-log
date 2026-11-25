@@ -40,3 +40,4 @@ New decision? Copy [`0000-template.md`](0000-template.md) to the next number.
 | [0033](0033-what-next-picker.md)               | "What should I do next?": a random pick, filters in the URL             |
 | [0034](0034-fill-in-from-box.md)               | Fill in the title, brand and pieces from the box photo                  |
 | [0035](0035-visual-refresh.md)                 | Visual refresh: warm theme, serif headings, bottom tab bar              |
+| [0036](0036-home-screen-app-not-app-store.md)  | A home-screen web app, not the App Store: launch screens, install help  |

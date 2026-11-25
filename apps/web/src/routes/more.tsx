@@ -6,6 +6,7 @@ import {
   DatabaseBackupIcon,
   FolderInputIcon,
 } from 'lucide-react';
+import { InstallCard } from '@/components/InstallCard';
 
 export const Route = createFileRoute('/more')({
   component: MorePage,
@@ -60,6 +61,7 @@ function MorePage() {
           </li>
         ))}
       </ul>
+      <InstallCard />
     </div>
   );
 }
