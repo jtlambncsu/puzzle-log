@@ -11,6 +11,7 @@ import {
 import { z } from 'zod';
 import { puzzleStatus, statusSchema, type PuzzleStatus } from '@puzzle-log/shared';
 import { puzzlesQueryOptions, useApi } from '@/api/queries';
+import { InstallCard } from '@/components/InstallCard';
 import { Button } from '@/components/ui/button';
 import { PuzzleGrid } from '@/features/puzzles/PuzzleGrid';
 import { PuzzleFilters } from '@/features/puzzles/PuzzleFilters';
@@ -78,6 +79,8 @@ function PuzzleListPage() {
         </span>
       </h1>
 
+      <InstallCard dismissible />
+
       {toReview > 0 && (
         <Link
           to="/review"
@@ -135,32 +138,35 @@ function countStatuses(puzzles: readonly { status?: PuzzleStatus }[]) {
 
 function EmptyState() {
   return (
-    <div className="flex flex-col items-center gap-4 py-16 text-center">
-      <PuzzleIcon className="size-12 text-muted-foreground/50" aria-hidden />
-      <div>
-        <h1 className="font-heading text-2xl font-semibold">No puzzles yet</h1>
-        <p className="text-muted-foreground">Finished one? Snap a photo and log it.</p>
+    <>
+      <InstallCard dismissible />
+      <div className="flex flex-col items-center gap-4 py-16 text-center">
+        <PuzzleIcon className="size-12 text-muted-foreground/50" aria-hidden />
+        <div>
+          <h1 className="font-heading text-2xl font-semibold">No puzzles yet</h1>
+          <p className="text-muted-foreground">Finished one? Snap a photo and log it.</p>
+        </div>
+        <div className="flex flex-wrap justify-center gap-2">
+          <Button asChild>
+            <Link to="/puzzles/new">
+              <PlusIcon aria-hidden />
+              Add your first puzzle
+            </Link>
+          </Button>
+          <Button asChild variant="outline">
+            <Link to="/puzzles/bulk">
+              <ImagesIcon aria-hidden />
+              Add several from photos
+            </Link>
+          </Button>
+          <Button asChild variant="outline">
+            <Link to="/puzzles/import">
+              <FolderInputIcon aria-hidden />
+              Import a whole album
+            </Link>
+          </Button>
+        </div>
       </div>
-      <div className="flex flex-wrap justify-center gap-2">
-        <Button asChild>
-          <Link to="/puzzles/new">
-            <PlusIcon aria-hidden />
-            Add your first puzzle
-          </Link>
-        </Button>
-        <Button asChild variant="outline">
-          <Link to="/puzzles/bulk">
-            <ImagesIcon aria-hidden />
-            Add several from photos
-          </Link>
-        </Button>
-        <Button asChild variant="outline">
-          <Link to="/puzzles/import">
-            <FolderInputIcon aria-hidden />
-            Import a whole album
-          </Link>
-        </Button>
-      </div>
-    </div>
+    </>
   );
 }

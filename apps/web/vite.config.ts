@@ -39,6 +39,9 @@ export default defineConfig({
         // scans offline. (Workbox's default limit is 2 MB per file.)
         globPatterns: ['**/*.{js,css,html,svg,png,wasm}'],
         maximumFileSizeToCacheInBytes: 3 * 1024 * 1024,
+        // Launch screens are fetched by iOS when the app is added to the home screen, not
+        // by the app, so there's no need to download all 22 into the offline cache.
+        globIgnores: ['splash/**'],
         // Any page URL (/puzzles/abc, /scan/…, the login callback) loads the app shell.
         navigateFallback: '/index.html',
         runtimeCaching: [

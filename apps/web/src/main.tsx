@@ -12,6 +12,8 @@ import { createQueryClient } from '@/api/queries';
 import { AuthGate } from '@/auth/AuthGate';
 import { getAccessToken, onSigninCallback, userManager } from '@/auth/config';
 import { Toaster } from '@/components/ui/sonner';
+// Catches the browser's install offer early, before the app renders.
+import '@/lib/install';
 import { createAppRouter, type AuthInfo } from '@/router';
 import './index.css';
 
